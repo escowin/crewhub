@@ -9,52 +9,20 @@ router.use(authMiddleware.verifyToken);
 
 /**
  * GET /api/athletes
- * Get athlete data for IndexedDB storage (protected endpoint)
- * Returns limited athlete data for team management with USRA categories
+ * Get all athletes with full data including contact information (protected endpoint)
+ * Returns comprehensive athlete data for IndexedDB storage and profile display
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const athletes = await athleteService.getAthletesForIndexedDB();
+    const athletes = await athleteService.getAthletes({
+      active: true,
+      competitive_status: 'active'
+    });
 
     return res.json({
       success: true,
       data: athletes,
-      message: 'Athlete data for IndexedDB retrieved successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Athletes API error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: 'INTERNAL_ERROR'
-    });
-  }
-});
-
-/**
- * GET /api/athletes/:id
- * Get complete profile data for logged-in user (protected endpoint)
- * Returns full profile with contact details and USRA category for local storage
- */
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    const athlete = await athleteService.getCompleteAthleteProfile(id as string);
-
-    if (!athlete) {
-      return res.status(404).json({
-        success: false,
-        message: 'Athlete not found',
-        error: 'ATHLETE_NOT_FOUND'
-      });
-    }
-
-    return res.json({
-      success: true,
-      data: athlete,
-      message: 'Complete athlete profile retrieved successfully'
+      message: 'Athlete data retrieved successfully'
     });
 
   } catch (error) {
@@ -84,7 +52,7 @@ router.get('/all', async (req: Request, res: Response) => {
       filters.competitive_status = competitive_status as 'active' | 'inactive' | 'retired' | 'banned';
     }
 
-    const athletes = await athleteService.getAthletesWithUsraCategories(filters);
+    const athletes = await athleteService.getAthletes(filters);
 
     return res.json({
       success: true,

@@ -257,3 +257,4 @@ pids
 .cursor/rules/
 .cursorignore
 
+bash.exe.*
