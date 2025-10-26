@@ -9,10 +9,22 @@ const router = Router();
 /**
  * GET /api/attendance/athlete/:athleteId
  * Get attendance records for a specific athlete
+ * FIXED: Now properly handles athleteId parameter
  */
 router.get('/athlete/:athleteId', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
     const { athleteId } = req.params;
+    
+    // Validate athleteId is not undefined
+    if (!athleteId || athleteId === 'undefined') {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid athlete ID provided',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
     const { 
       startDate, 
       endDate, 
@@ -80,6 +92,49 @@ router.get('/athlete/:athleteId', authMiddleware.verifyToken, async (req: Reques
       success: false,
       data: null,
       message: 'Failed to fetch attendance records',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/attendance/athlete/:athleteId/upcoming
+ * Get upcoming attendance records for an athlete's teams
+ */
+router.get('/athlete/:athleteId/upcoming', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { athleteId } = req.params;
+    const { daysAhead = '30' } = req.query;
+
+    // Validate athleteId
+    if (!athleteId || athleteId === 'undefined') {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid athlete ID provided',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
+    const daysAheadNum = parseInt(daysAhead as string);
+    const upcomingAttendance = await attendanceService.getUpcomingAttendanceForAthlete(
+      athleteId, 
+      isNaN(daysAheadNum) ? 30 : daysAheadNum
+    );
+
+    return res.json({
+      success: true,
+      data: upcomingAttendance,
+      message: `Found ${upcomingAttendance.length} upcoming attendance records`,
+      error: null
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching upcoming attendance for athlete:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch upcoming attendance records',
       error: error.message || 'INTERNAL_ERROR'
     });
   }

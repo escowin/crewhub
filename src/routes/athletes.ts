@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware';
-import { athleteService } from '../services';
+import { athleteService, teamService, practiceSessionService } from '../services';
 
 const router = Router();
 
@@ -130,6 +130,122 @@ router.put('/:id', async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error',
       error: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/athletes/:athleteId/teams
+ * Get all teams that an athlete belongs to
+ */
+router.get('/:athleteId/teams', async (req: Request, res: Response) => {
+  try {
+    const { athleteId } = req.params;
+
+    if (!athleteId) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Athlete ID is required',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
+    const athleteTeams = await teamService.getAthleteTeams(athleteId);
+
+    return res.json({
+      success: true,
+      data: athleteTeams,
+      message: `Found ${athleteTeams.length} teams for athlete`,
+      error: null
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching athlete teams:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch athlete teams',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/athletes/:athleteId/upcoming-sessions
+ * Get upcoming practice sessions for an athlete's teams
+ */
+router.get('/:athleteId/upcoming-sessions', async (req: Request, res: Response) => {
+  try {
+    const { athleteId } = req.params;
+    const { daysAhead = '30' } = req.query;
+
+    if (!athleteId) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Athlete ID is required',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
+    const daysAheadNum = parseInt(daysAhead as string);
+    const upcomingSessions = await practiceSessionService.getUpcomingSessionsForAthlete(
+      athleteId, 
+      isNaN(daysAheadNum) ? 30 : daysAheadNum
+    );
+
+    return res.json({
+      success: true,
+      data: upcomingSessions,
+      message: `Found ${upcomingSessions.length} upcoming sessions`,
+      error: null
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching upcoming sessions for athlete:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch upcoming sessions',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/athletes/:athleteId/todays-sessions
+ * Get today's practice sessions for an athlete's teams
+ */
+router.get('/:athleteId/todays-sessions', async (req: Request, res: Response) => {
+  try {
+    const { athleteId } = req.params;
+
+    if (!athleteId) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Athlete ID is required',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
+    const todaysSessions = await practiceSessionService.getTodaysSessionsForAthlete(athleteId);
+
+    return res.json({
+      success: true,
+      data: todaysSessions,
+      message: `Found ${todaysSessions.length} sessions today`,
+      error: null
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching today\'s sessions for athlete:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch today\'s sessions',
+      error: error.message || 'INTERNAL_ERROR'
     });
   }
 });

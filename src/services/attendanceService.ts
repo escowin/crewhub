@@ -1,5 +1,6 @@
-import { Attendance } from '../models';
+import { Attendance, PracticeSession, TeamMembership } from '../models';
 import sequelize from '../config/database';
+import { Op } from 'sequelize';
 
 export interface AttendanceSubmissionData {
   session_id: number;
@@ -317,6 +318,297 @@ export class AttendanceService {
       valid: errors.length === 0,
       errors
     };
+  }
+
+  /**
+   * Get upcoming attendance records for an athlete
+   * Returns attendance records for upcoming practice sessions of athlete's teams
+   */
+  async getUpcomingAttendanceForAthlete(athleteId: string, daysAhead: number = 30): Promise<Attendance[]> {
+    try {
+      // Get athlete's team IDs
+      const memberships = await TeamMembership.findAll({
+        where: {
+          athlete_id: athleteId,
+          left_at: null as any // Type assertion to bypass strict typing
+        },
+        attributes: ['team_id']
+      });
+
+      const teamIds = memberships.map(m => m.team_id);
+      
+      if (teamIds.length === 0) {
+        return []; // Athlete is not a member of any teams
+      }
+
+      // Calculate date range
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + daysAhead);
+
+      // Get attendance records for upcoming sessions
+      const attendanceRecords = await Attendance.findAll({
+        where: {
+          athlete_id: athleteId,
+          '$session.date$': {
+            [Op.gte]: today,
+            [Op.lte]: futureDate
+          },
+          '$session.team_id$': {
+            [Op.in]: teamIds
+          }
+        },
+        include: [{
+          model: PracticeSession,
+          as: 'session',
+          attributes: [
+            'session_id',
+            'team_id',
+            'date',
+            'start_time',
+            'end_time',
+            'session_type',
+            'location',
+            'notes'
+          ],
+          where: {
+            team_id: {
+              [Op.in]: teamIds
+            }
+          }
+        }],
+        order: [['$session.date$', 'ASC'], ['$session.start_time$', 'ASC']],
+        attributes: [
+          'attendance_id',
+          'session_id',
+          'athlete_id',
+          'status',
+          'notes',
+          'team_id',
+          'created_at',
+          'updated_at'
+        ]
+      });
+
+      return attendanceRecords;
+    } catch (error) {
+      console.error('AttendanceService: Error fetching upcoming attendance for athlete:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get attendance records for a specific team's practice sessions
+   */
+  async getTeamAttendanceRecords(
+    teamId: number, 
+    options: {
+      startDate?: Date;
+      endDate?: Date;
+      athleteId?: string;
+      status?: string;
+    } = {}
+  ): Promise<Attendance[]> {
+    try {
+      const { startDate, endDate, athleteId, status } = options;
+
+      const whereClause: any = {
+        team_id: teamId
+      };
+
+      // Filter by athlete if specified
+      if (athleteId) {
+        whereClause.athlete_id = athleteId;
+      }
+
+      // Filter by status if specified
+      if (status) {
+        whereClause.status = status;
+      }
+
+      // Filter by date range through session
+      if (startDate || endDate) {
+        whereClause['$session.date$'] = {};
+        if (startDate) whereClause['$session.date$'][Op.gte] = startDate;
+        if (endDate) whereClause['$session.date$'][Op.lte] = endDate;
+      }
+
+      const attendanceRecords = await Attendance.findAll({
+        where: whereClause,
+        include: [{
+          model: PracticeSession,
+          as: 'session',
+          attributes: [
+            'session_id',
+            'team_id',
+            'date',
+            'start_time',
+            'end_time',
+            'session_type',
+            'location',
+            'notes'
+          ]
+        }],
+        order: [['$session.date$', 'ASC'], ['$session.start_time$', 'ASC']],
+        attributes: [
+          'attendance_id',
+          'session_id',
+          'athlete_id',
+          'status',
+          'notes',
+          'team_id',
+          'created_at',
+          'updated_at'
+        ]
+      });
+
+      return attendanceRecords;
+    } catch (error) {
+      console.error('AttendanceService: Error fetching team attendance records:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get attendance statistics for an athlete
+   */
+  async getAthleteAttendanceStats(
+    athleteId: string, 
+    options: {
+      startDate?: Date;
+      endDate?: Date;
+      teamId?: number;
+    } = {}
+  ): Promise<{
+    totalSessions: number;
+    statusCounts: Record<string, number>;
+    attendanceRate: number;
+    records: Attendance[];
+  }> {
+    try {
+      const { startDate, endDate, teamId } = options;
+
+      const whereClause: any = {
+        athlete_id: athleteId
+      };
+
+      // Filter by team if specified
+      if (teamId) {
+        whereClause.team_id = teamId;
+      }
+
+      // Filter by date range through session
+      if (startDate || endDate) {
+        whereClause['$session.date$'] = {};
+        if (startDate) whereClause['$session.date$'][Op.gte] = startDate;
+        if (endDate) whereClause['$session.date$'][Op.lte] = endDate;
+      }
+
+      const attendanceRecords = await Attendance.findAll({
+        where: whereClause,
+        include: [{
+          model: PracticeSession,
+          as: 'session',
+          attributes: ['date']
+        }],
+        attributes: ['status'],
+        order: [['$session.date$', 'DESC']]
+      });
+
+      // Calculate statistics
+      const totalSessions = attendanceRecords.length;
+      const statusCounts = attendanceRecords.reduce((acc, record) => {
+        const status = record.status || 'Not Marked';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const attendanceRate = totalSessions > 0 
+        ? ((statusCounts['Yes'] || 0) / totalSessions * 100)
+        : 0;
+
+      return {
+        totalSessions,
+        statusCounts,
+        attendanceRate: Math.round(attendanceRate * 10) / 10, // Round to 1 decimal
+        records: attendanceRecords
+      };
+    } catch (error) {
+      console.error('AttendanceService: Error fetching athlete attendance stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if athlete can mark attendance for a session (is member of the team)
+   */
+  async canAthleteMarkAttendance(athleteId: string, sessionId: number): Promise<boolean> {
+    try {
+      const session = await PracticeSession.findByPk(sessionId, {
+        attributes: ['team_id']
+      });
+
+      if (!session) {
+        return false;
+      }
+
+      const membership = await TeamMembership.findOne({
+        where: {
+          athlete_id: athleteId,
+          team_id: session.team_id,
+          left_at: null as any // Type assertion to bypass strict typing
+        }
+      });
+
+      return membership !== null;
+    } catch (error) {
+      console.error('AttendanceService: Error checking attendance permission:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get attendance records for a specific practice session
+   */
+  async getSessionAttendance(sessionId: number): Promise<Attendance[]> {
+    try {
+      const attendanceRecords = await Attendance.findAll({
+        where: {
+          session_id: sessionId
+        },
+        include: [{
+          model: PracticeSession,
+          as: 'session',
+          attributes: [
+            'session_id',
+            'team_id',
+            'date',
+            'start_time',
+            'end_time',
+            'session_type',
+            'location',
+            'notes'
+          ]
+        }],
+        order: [['created_at', 'ASC']],
+        attributes: [
+          'attendance_id',
+          'session_id',
+          'athlete_id',
+          'status',
+          'notes',
+          'team_id',
+          'created_at',
+          'updated_at'
+        ]
+      });
+
+      return attendanceRecords;
+    } catch (error) {
+      console.error('AttendanceService: Error fetching session attendance:', error);
+      throw error;
+    }
   }
 }
 

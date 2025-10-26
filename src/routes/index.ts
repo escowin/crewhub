@@ -9,6 +9,7 @@ import ladderRoutes from './ladders';
 import ladderPositionRoutes from './ladderPositions';
 import lineupRoutes from './lineups';
 import practiceSessionRoutes from './practiceSessions';
+import teamRoutes from './teams';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/ladders', ladderRoutes);
 router.use('/ladder-positions', ladderPositionRoutes);
 router.use('/lineups', lineupRoutes);
 router.use('/practice-sessions', practiceSessionRoutes);
+router.use('/teams', teamRoutes);
 
 export { router as apiRoutes };
