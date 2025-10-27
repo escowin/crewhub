@@ -323,6 +323,7 @@ export class AttendanceService {
   /**
    * Get upcoming attendance records for an athlete
    * Returns attendance records for upcoming practice sessions of athlete's teams
+   * Matches SQL: SELECT a.* FROM attendance a LEFT JOIN practice_sessions p ON a.session_id = p.session_id WHERE athlete_id = ? AND p.date >= CURRENT_DATE
    */
   async getUpcomingAttendanceForAthlete(athleteId: string, daysAhead: number = 30): Promise<Attendance[]> {
     try {
@@ -341,14 +342,13 @@ export class AttendanceService {
         return []; // Athlete is not a member of any teams
       }
 
-      // Calculate date range
+      // Calculate date range for upcoming sessions
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const futureDate = new Date();
       futureDate.setDate(today.getDate() + daysAhead);
 
-      // Get all attendance records for this athlete
-      // Simply filter by athlete_id and team_id, let the frontend filter by date
+      // Get all attendance records for this athlete in their teams
       const attendanceRecords = await Attendance.findAll({
         where: {
           athlete_id: athleteId,
@@ -368,7 +368,14 @@ export class AttendanceService {
             'session_type',
             'location',
             'notes'
-          ]
+          ],
+          required: true, // INNER JOIN to ensure session exists
+          where: {
+            date: {
+              [Op.gte]: today,
+              [Op.lte]: futureDate
+            }
+          }
         }],
         attributes: [
           'attendance_id',
