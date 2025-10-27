@@ -6,7 +6,7 @@ interface TeamMembershipAttributes {
   membership_id: number;
   athlete_id: string;
   team_id: number;
-  role: 'Member' | 'Captain' | 'Coach' | 'Admin';
+  role: 'Athlete' | 'Captain' | 'Coach' | 'Assistant Coach' | 'Secretary';
   joined_at: Date;
   left_at?: Date;
   created_at: Date;
@@ -22,7 +22,7 @@ class TeamMembership extends Model<TeamMembershipAttributes, TeamMembershipCreat
   public membership_id!: number;
   public athlete_id!: string;
   public team_id!: number;
-  public role!: 'Member' | 'Captain' | 'Coach' | 'Admin';
+  public role!: 'Athlete' | 'Captain' | 'Coach' | 'Assistant Coach' | 'Secretary';
   public joined_at!: Date;
   public left_at?: Date;
   public created_at!: Date;

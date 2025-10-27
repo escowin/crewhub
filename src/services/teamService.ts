@@ -211,7 +211,7 @@ export class TeamService {
           // Reactivate membership
           await existingMembership.update({
             left_at: null as any, // Type assertion to bypass strict typing
-            role: role as 'Member' | 'Captain' | 'Coach' | 'Admin',
+            role: role as 'Athlete' | 'Captain' | 'Coach' | 'Assistant Coach' | 'Secretary',
             updated_at: new Date()
           });
           return existingMembership;
@@ -224,7 +224,7 @@ export class TeamService {
       const membership = await TeamMembership.create({
         athlete_id: athleteId,
         team_id: teamId,
-        role: role as 'Member' | 'Captain' | 'Coach' | 'Admin',
+        role: role as 'Athlete' | 'Captain' | 'Coach' | 'Assistant Coach' | 'Secretary',
         joined_at: new Date()
       });
 

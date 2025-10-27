@@ -2,9 +2,8 @@
  * Environment configuration with proper typing
  */
 
-// Load environment variables from .env file
-import * as dotenv from 'dotenv';
-dotenv.config();
+// Environment variables are loaded by the calling application
+// No need to call dotenv.config() here as it may overwrite existing values
 
 interface EnvironmentConfig {
   // Database
