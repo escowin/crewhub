@@ -7,6 +7,7 @@ export interface PracticeSessionWithTeam extends PracticeSession {
 
 export interface UpcomingSessionForAthlete extends PracticeSession {
   team: Team;
+  athlete_id: string;
   attendance?: {
     status: string | null;
     notes?: string;
@@ -78,7 +79,8 @@ export class PracticeSessionService {
 
       return sessions.map(session => ({
         ...session.toJSON(),
-        team: (session as any).team
+        team: (session as any).team,
+        athlete_id: athleteId
       })) as UpcomingSessionForAthlete[];
     } catch (error) {
       console.error('PracticeSessionService: Error fetching upcoming sessions for athlete:', error);
@@ -227,7 +229,8 @@ export class PracticeSessionService {
 
       return sessions.map(session => ({
         ...session.toJSON(),
-        team: (session as any).team
+        team: (session as any).team,
+        athlete_id: athleteId
       })) as UpcomingSessionForAthlete[];
     } catch (error) {
       console.error('PracticeSessionService: Error fetching today\'s sessions for athlete:', error);
