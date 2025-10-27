@@ -347,15 +347,12 @@ export class AttendanceService {
       const futureDate = new Date();
       futureDate.setDate(today.getDate() + daysAhead);
 
-      // Get attendance records for upcoming sessions
+      // Get attendance records for this athlete
+      // For upcoming sessions, we need to join with practice sessions to filter by date
       const attendanceRecords = await Attendance.findAll({
         where: {
           athlete_id: athleteId,
-          '$session.date$': {
-            [Op.gte]: today,
-            [Op.lte]: futureDate
-          },
-          '$session.team_id$': {
+          team_id: {
             [Op.in]: teamIds
           }
         },
@@ -373,12 +370,17 @@ export class AttendanceService {
             'notes'
           ],
           where: {
+            date: {
+              [Op.gte]: today,
+              [Op.lte]: futureDate
+            },
             team_id: {
               [Op.in]: teamIds
             }
-          }
+          },
+          required: true // INNER JOIN to only return attendance for valid sessions
         }],
-        order: [['$session.date$', 'ASC'], ['$session.start_time$', 'ASC']],
+        order: [[{ model: PracticeSession, as: 'session' }, 'date', 'ASC'], [{ model: PracticeSession, as: 'session' }, 'start_time', 'ASC']],
         attributes: [
           'attendance_id',
           'session_id',
