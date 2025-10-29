@@ -394,7 +394,7 @@ export class LineupService {
         where: {
           active: true
         },
-        attributes: ['athlete_id', 'name', 'weight_kg', 'birth_year', 'gender', 'sweep_scull', 'port_starboard'],
+        attributes: ['athlete_id', 'name', 'weight_kg', 'birth_year', 'gender', 'discipline', 'side'],
         order: [['name', 'ASC']]
       });
 

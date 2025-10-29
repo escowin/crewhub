@@ -10,8 +10,8 @@ interface AthleteAttributes {
   type: 'Cox' | 'Rower' | 'Rower & Coxswain';
   gender?: 'M' | 'F';
   birth_year?: number;
-  sweep_scull?: 'Sweep' | 'Scull' | 'Sweep & Scull';
-  port_starboard?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
+  discipline?: 'Sweep' | 'Scull' | 'Sweep & Scull';
+  side?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
   bow_in_dark?: boolean;
   weight_kg?: number;
   height_cm?: number;
@@ -44,7 +44,7 @@ interface AthleteAttributes {
 // Define the creation attributes (optional fields for creation)
 interface AthleteCreationAttributes extends Optional<AthleteAttributes, 
   'athlete_id' | 'email' | 'phone' | 'gender' | 
-  'birth_year' | 'sweep_scull' | 'port_starboard' | 
+  'birth_year' | 'discipline' | 'side' | 
   'bow_in_dark' | 'weight_kg' | 'height_cm' |'experience_years' | 'usra_age_category_id' | 'us_rowing_number' | 'emergency_contact' | 
   'emergency_contact_phone' | 'active' | 'competitive_status' | 'retirement_reason' | 'retirement_date' | 
   'ban_reason' | 'ban_date' | 'ban_notes' | 'pin_hash' | 'pin_salt' | 'pin_created_at' | 
@@ -60,8 +60,8 @@ class Athlete extends Model<AthleteAttributes, AthleteCreationAttributes> implem
   public type!: 'Cox' | 'Rower' | 'Rower & Coxswain';
   public gender?: 'M' | 'F';
   public birth_year?: number;
-  public sweep_scull?: 'Sweep' | 'Scull' | 'Sweep & Scull';
-  public port_starboard?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
+  public discipline?: 'Sweep' | 'Scull' | 'Sweep & Scull';
+  public side?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
   public bow_in_dark?: boolean;
   public weight_kg?: number;
   public height_cm?: number;
@@ -132,11 +132,11 @@ Athlete.init(
         max: new Date().getFullYear(),
       },
     },
-    sweep_scull: {
+    discipline: {
       type: DataTypes.ENUM('Sweep', 'Scull', 'Sweep & Scull'),
       allowNull: true,
     },
-    port_starboard: {
+    side: {
       type: DataTypes.ENUM('Starboard', 'Prefer Starboard', 'Either', 'Prefer Port', 'Port'),
       allowNull: true,
     },

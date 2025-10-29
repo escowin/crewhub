@@ -120,14 +120,6 @@ GauntletMatch.init(
         fields: ['gauntlet_id']
       },
       {
-        name: 'idx_gauntlet_matches_match_date',
-        fields: ['match_date']
-      },
-      {
-        name: 'idx_gauntlet_matches_gauntlet_id',
-        fields: ['gauntlet_id']
-      },
-      {
         name: 'idx_gauntlet_matches_user_lineup_id',
         fields: ['user_lineup_id']
       },

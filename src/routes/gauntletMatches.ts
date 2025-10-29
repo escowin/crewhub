@@ -19,6 +19,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const {
       match_id,
       gauntlet_id,
+      user_lineup_id,
+      challenger_lineup_id,
       workout,
       sets,
       user_wins = 0,
@@ -33,6 +35,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     console.log('📊 GauntletMatches API: Extracted data:', {
       match_id,
       gauntlet_id,
+      user_lineup_id,
+      challenger_lineup_id,
       workout,
       sets,
       user_wins,
@@ -42,25 +46,38 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       process_ladder
     });
 
-    const athleteId = req.user?.athlete_id;
-    console.log('👤 GauntletMatches API: Athlete ID:', athleteId);
+    // Validate lineup IDs
+    console.log('👤 GauntletMatches API: User lineup ID:', user_lineup_id);
+    console.log('👤 GauntletMatches API: Challenger lineup ID:', challenger_lineup_id);
     
-    if (!athleteId) {
-      console.log('❌ GauntletMatches API: No athlete ID found');
-      return res.status(401).json({
+    if (!user_lineup_id || !challenger_lineup_id) {
+      console.log('❌ GauntletMatches API: Missing lineup IDs');
+      return res.status(400).json({
         success: false,
         data: null,
-        message: 'Athlete ID required',
-        error: 'UNAUTHORIZED'
+        message: 'Both user_lineup_id and challenger_lineup_id are required',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+    
+    // Ensure user and challenger lineups are different
+    if (user_lineup_id === challenger_lineup_id) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'User lineup and challenger lineup must be different',
+        error: 'VALIDATION_ERROR'
       });
     }
 
     // Validate required fields
     console.log('✅ GauntletMatches API: Validating required fields...');
-    if (!match_id || !gauntlet_id || !workout || !sets || !match_date) {
+    if (!match_id || !gauntlet_id || !user_lineup_id || !challenger_lineup_id || !workout || !sets || !match_date) {
       console.log('❌ GauntletMatches API: Missing required fields:', {
         match_id: !!match_id,
         gauntlet_id: !!gauntlet_id,
+        user_lineup_id: !!user_lineup_id,
+        challenger_lineup_id: !!challenger_lineup_id,
         workout: !!workout,
         sets: !!sets,
         match_date: !!match_date
@@ -68,7 +85,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Missing required fields: gauntlet_id, workout, sets, match_date',
+        message: 'Missing required fields: gauntlet_id, user_lineup_id, challenger_lineup_id, workout, sets, match_date',
         error: 'VALIDATION_ERROR'
       });
     }
@@ -122,6 +139,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const match = await GauntletMatch.create({
       match_id: match_id || randomUUID(),
       gauntlet_id,
+      user_lineup_id,
+      challenger_lineup_id,
       workout,
       sets,
       user_wins,
@@ -139,15 +158,16 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     if (process_ladder) {
       console.log('📈 GauntletMatches API: Processing ladder updates...');
       try {
-        // Use the original request data instead of the match object to avoid undefined values
+        // Process ladder updates for both lineups
         const ladderResult = await LadderService.processMatchResult({
-          match_id: match_id,
+          match_id: match.match_id,
           gauntlet_id: gauntlet_id,
+          user_lineup_id: user_lineup_id,
+          challenger_lineup_id: challenger_lineup_id,
           user_wins: user_wins,
           user_losses: user_losses,
           sets: sets,
-          match_date: new Date(match_date),
-          athlete_id: athleteId
+          match_date: new Date(match_date)
         });
 
         ladderUpdate = ladderResult.ladderUpdate;
@@ -165,6 +185,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
         match: {
           match_id: match.match_id,
           gauntlet_id: match.gauntlet_id,
+          user_lineup_id: match.user_lineup_id,
+          challenger_lineup_id: match.challenger_lineup_id,
           workout: match.workout,
           sets: match.sets,
           user_wins: match.user_wins,

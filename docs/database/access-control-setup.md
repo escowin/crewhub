@@ -634,5 +634,5 @@ describe('Access Control Integration', () => {
 ---
 
 **Document Version**: 2.0  
-**Last Updated**: December 2024  
+**Last Updated**: October 2025  
 **Next Review**: March 2025

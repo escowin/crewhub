@@ -276,6 +276,30 @@ export function setupAssociations() {
     as: 'gauntlet'
   });
 
+  // GauntletLineup -> GauntletMatch (One-to-Many) - user lineup matches
+  GauntletLineup.hasMany(GauntletMatch, {
+    foreignKey: 'user_lineup_id',
+    as: 'user_matches',
+    onDelete: 'CASCADE'
+  });
+
+  GauntletMatch.belongsTo(GauntletLineup, {
+    foreignKey: 'user_lineup_id',
+    as: 'user_lineup'
+  });
+
+  // GauntletLineup -> GauntletMatch (One-to-Many) - challenger lineup matches
+  GauntletLineup.hasMany(GauntletMatch, {
+    foreignKey: 'challenger_lineup_id',
+    as: 'challenger_matches',
+    onDelete: 'CASCADE'
+  });
+
+  GauntletMatch.belongsTo(GauntletLineup, {
+    foreignKey: 'challenger_lineup_id',
+    as: 'challenger_lineup'
+  });
+
   // Gauntlet -> GauntletLineup (One-to-Many)
   Gauntlet.hasMany(GauntletLineup, {
     foreignKey: 'gauntlet_id',
@@ -348,15 +372,16 @@ export function setupAssociations() {
     as: 'ladder'
   });
 
-  // Athlete -> LadderPosition (One-to-Many)
-  Athlete.hasMany(LadderPosition, {
-    foreignKey: 'athlete_id',
-    as: 'ladder_positions'
+  // GauntletLineup -> LadderPosition (One-to-Many)
+  GauntletLineup.hasMany(LadderPosition, {
+    foreignKey: 'gauntlet_lineup_id',
+    as: 'ladder_positions',
+    onDelete: 'CASCADE'
   });
 
-  LadderPosition.belongsTo(Athlete, {
-    foreignKey: 'athlete_id',
-    as: 'athlete'
+  LadderPosition.belongsTo(GauntletLineup, {
+    foreignKey: 'gauntlet_lineup_id',
+    as: 'lineup'
   });
 
   // Ladder -> LadderProgression (One-to-Many)
@@ -371,15 +396,16 @@ export function setupAssociations() {
     as: 'ladder'
   });
 
-  // Athlete -> LadderProgression (One-to-Many)
-  Athlete.hasMany(LadderProgression, {
-    foreignKey: 'athlete_id',
-    as: 'ladder_progressions'
+  // GauntletLineup -> LadderProgression (One-to-Many)
+  GauntletLineup.hasMany(LadderProgression, {
+    foreignKey: 'gauntlet_lineup_id',
+    as: 'ladder_progressions',
+    onDelete: 'CASCADE'
   });
 
-  LadderProgression.belongsTo(Athlete, {
-    foreignKey: 'athlete_id',
-    as: 'athlete'
+  LadderProgression.belongsTo(GauntletLineup, {
+    foreignKey: 'gauntlet_lineup_id',
+    as: 'lineup'
   });
 
   // GauntletMatch -> LadderProgression (One-to-Many) - optional relationship

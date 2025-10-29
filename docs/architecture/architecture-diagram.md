@@ -247,8 +247,8 @@ Database (Athletes Table)
     "weight_kg": 75,
     "birth_year": 1990,
     "type": "Rower",
-    "sweep_scull": "Sweep & Scull",
-    "port_starboard": "Either",
+    "discipline": "Sweep & Scull",
+    "side": "Either",
     "bow_in_dark": false,
     "experience": 5,
     "active": true,
@@ -314,7 +314,7 @@ attributes: [
 attributes: [
   'athlete_id', 'name', 'email', 'phone', 'us_rowing_number',
   'emergency_contact', 'emergency_contact_phone', 'weight_kg',
-  'birth_year', 'type', 'sweep_scull', 'port_starboard',
+  'birth_year', 'type', 'discipline', 'side',
   'bow_in_dark', 'experience', 'active', 'competitive_status',
   'new_field' // Add your new field here
 ]

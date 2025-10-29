@@ -22,8 +22,8 @@ erDiagram
         enum type
         enum gender
         integer birth_year
-        enum sweep_scull
-        enum port_starboard
+        enum discipline
+        enum side
         boolean bow_in_dark
         decimal weight_kg
         integer height_cm

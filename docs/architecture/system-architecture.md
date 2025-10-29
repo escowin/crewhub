@@ -1,6 +1,6 @@
 # CrewHub System Architecture
 
-*Last Updated: December 2025*
+*Last Updated: October 2025*
 
 ## Overview
 

@@ -388,5 +388,5 @@ JOIN boat_usage_summary s ON b.boat_id = s.boat_id;
 ---
 
 **Document Version:** 2.0  
-**Last Updated:** December 2024  
+**Last Updated:** October 2025  
 **Next Review:** March 2025

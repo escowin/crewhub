@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { LadderPosition, Ladder, Athlete } from '../models';
+import { LadderPosition, Ladder, GauntletLineup } from '../models';
 import { authMiddleware } from '../auth/middleware';
 
 const router = Router();
@@ -13,7 +13,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
   try {
     const {
       ladder_id,
-      athlete_id,
+      gauntlet_lineup_id,
       position,
       previous_position,
       wins = 0,
@@ -29,11 +29,11 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     } = req.body;
 
     // Validate required fields
-    if (!ladder_id || !athlete_id || position === undefined) {
+    if (!ladder_id || !gauntlet_lineup_id || position === undefined) {
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Missing required fields: ladder_id, athlete_id, position',
+        message: 'Missing required fields: ladder_id, gauntlet_lineup_id, position',
         error: 'VALIDATION_ERROR'
       });
     }
@@ -49,13 +49,13 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       });
     }
 
-    // Check if athlete exists
-    const athlete = await Athlete.findByPk(athlete_id);
-    if (!athlete) {
+    // Check if gauntlet lineup exists
+    const lineup = await GauntletLineup.findByPk(gauntlet_lineup_id);
+    if (!lineup) {
       return res.status(404).json({
         success: false,
         data: null,
-        message: 'Athlete not found',
+        message: 'Gauntlet lineup not found',
         error: 'NOT_FOUND'
       });
     }
@@ -81,11 +81,11 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       });
     }
 
-    // Check if athlete already has a position in this ladder
+    // Check if gauntlet lineup already has a position in this ladder
     const existingPosition = await LadderPosition.findOne({
       where: {
         ladder_id,
-        athlete_id
+        gauntlet_lineup_id
       }
     });
 
@@ -93,7 +93,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Athlete already has a position in this ladder',
+        message: 'Gauntlet lineup already has a position in this ladder',
         error: 'DUPLICATE_ERROR'
       });
     }
@@ -102,7 +102,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const ladderPosition = await LadderPosition.create({
       position_id: randomUUID(), // Generate UUID for primary key
       ladder_id,
-      athlete_id,
+      gauntlet_lineup_id,
       position,
       previous_position,
       wins,
@@ -121,8 +121,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const createdPosition = await LadderPosition.findByPk(ladderPosition.position_id, {
       include: [
         {
-          model: Athlete,
-          as: 'athlete',
+          model: GauntletLineup,
+          as: 'lineup',
           attributes: ['athlete_id', 'name', 'email']
         },
         {
@@ -198,9 +198,9 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
     const updatedPosition = await LadderPosition.findByPk(id, {
       include: [
         {
-          model: Athlete,
-          as: 'athlete',
-          attributes: ['athlete_id', 'name', 'email']
+          model: GauntletLineup,
+          as: 'lineup',
+          attributes: ['gauntlet_lineup_id', 'is_user_lineup']
         },
         {
           model: Ladder,

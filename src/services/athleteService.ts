@@ -21,8 +21,8 @@ export interface AthleteWithUsraData {
   gender?: 'M' | 'F';
   height_cm?: number | string;
   phone?: string;
-  port_starboard?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
-  sweep_scull?: 'Sweep' | 'Scull' | 'Sweep & Scull';
+  side?: 'Starboard' | 'Prefer Starboard' | 'Either' | 'Prefer Port' | 'Port';
+  discipline?: 'Sweep' | 'Scull' | 'Sweep & Scull';
   type: 'Cox' | 'Rower' | 'Rower & Coxswain';
   usra_age_category?: string;
   us_rowing_number?: string;
@@ -67,8 +67,8 @@ export class AthleteService {
           'gender',
           'height_cm',
           'phone',
-          'port_starboard',
-          'sweep_scull',
+          'side',
+          'discipline',
           'type',
           'weight_kg',
           'usra_age_category_id',
@@ -100,8 +100,8 @@ export class AthleteService {
           gender: athleteData.gender,
           height_cm: athleteData.height_cm,
           phone: athleteData.phone,
-          port_starboard: athleteData.port_starboard,
-          sweep_scull: athleteData.sweep_scull,
+          side: athleteData.side,
+          discipline: athleteData.discipline,
           type: athleteData.type,
           usra_age_category: athleteData.usra_age_category?.category || undefined,
           us_rowing_number: athleteData.us_rowing_number,
@@ -150,11 +150,11 @@ export class AthleteService {
       if (updateData.emergency_contact_phone !== undefined) {
         dbUpdateData.emergency_contact_phone = updateData.emergency_contact_phone;
       }
-      if (updateData.port_starboard !== undefined) {
-        dbUpdateData.port_starboard = updateData.port_starboard;
+      if (updateData.side !== undefined) {
+        dbUpdateData.side = updateData.side;
       }
-      if (updateData.sweep_scull !== undefined) {
-        dbUpdateData.sweep_scull = updateData.sweep_scull;
+      if (updateData.discipline !== undefined) {
+        dbUpdateData.discipline = updateData.discipline;
       }
       if (updateData.bow_in_dark !== undefined) {
         dbUpdateData.bow_in_dark = updateData.bow_in_dark;
