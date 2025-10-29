@@ -7,12 +7,13 @@ interface GauntletLineupAttributes {
   gauntlet_id: string;
   match_id?: string; // Optional - null during configuration, populated when match is created
   boat_id: string;
+  is_user_lineup: boolean;
   created_at: Date;
   updated_at: Date;
 }
 
 // Define the creation attributes interface
-interface GauntletLineupCreationAttributes extends Optional<GauntletLineupAttributes, 'gauntlet_lineup_id' | 'match_id' | 'created_at' | 'updated_at'> {}
+interface GauntletLineupCreationAttributes extends Optional<GauntletLineupAttributes, 'gauntlet_lineup_id' | 'match_id' | 'is_user_lineup' | 'created_at' | 'updated_at'> {}
 
 // Define the model class
 class GauntletLineup extends Model<GauntletLineupAttributes, GauntletLineupCreationAttributes> implements GauntletLineupAttributes {
@@ -20,6 +21,7 @@ class GauntletLineup extends Model<GauntletLineupAttributes, GauntletLineupCreat
   public gauntlet_id!: string;
   public match_id?: string;
   public boat_id!: string;
+  public is_user_lineup!: boolean;
   public created_at!: Date;
   public updated_at!: Date;
 
@@ -62,6 +64,11 @@ GauntletLineup.init(
         key: 'boat_id'
       },
       onDelete: 'CASCADE'
+    },
+    is_user_lineup: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     },
     created_at: {
       type: DataTypes.DATE,

@@ -43,8 +43,8 @@ CREATE TABLE athletes (
     birth_year INTEGER,
     
     -- Rowing Skills & Preferences
-    sweep_scull TEXT CHECK (sweep_scull IN ('Sweep', 'Scull', 'Sweep & Scull')),
-    port_starboard TEXT CHECK (port_starboard IN ('Starboard', 'Prefer Starboard', 'Either', 'Prefer Port', 'Port')),
+    discipline TEXT CHECK (discipline IN ('Sweep', 'Scull', 'Sweep & Scull')),
+    side TEXT CHECK (side IN ('Starboard', 'Prefer Starboard', 'Either', 'Prefer Port', 'Port')),
     bow_in_dark BOOLEAN,
     
     -- Physical Attributes
@@ -451,6 +451,8 @@ CREATE INDEX idx_gauntlets_boat_type ON gauntlets(boat_type);
 CREATE TABLE gauntlet_matches (
     match_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     gauntlet_id UUID REFERENCES gauntlets(gauntlet_id) ON DELETE CASCADE,
+    user_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
+    challenger_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
     
     -- Match Details
     workout TEXT NOT NULL,
@@ -469,6 +471,8 @@ CREATE TABLE gauntlet_matches (
 
 -- Indexes
 CREATE INDEX idx_gauntlet_matches_gauntlet_id ON gauntlet_matches(gauntlet_id);
+CREATE INDEX idx_gauntlet_matches_user_lineup_id ON gauntlet_matches(user_lineup_id);
+CREATE INDEX idx_gauntlet_matches_challenger_lineup_id ON gauntlet_matches(challenger_lineup_id);
 CREATE INDEX idx_gauntlet_matches_match_date ON gauntlet_matches(match_date);
 
 -- Gauntlet Lineups Table
@@ -477,6 +481,7 @@ CREATE TABLE gauntlet_lineups (
     gauntlet_id UUID REFERENCES gauntlets(gauntlet_id) ON DELETE CASCADE,
     match_id UUID REFERENCES gauntlet_matches(match_id) ON DELETE SET NULL,
     boat_id UUID REFERENCES boats(boat_id),
+    is_user_lineup BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -485,6 +490,7 @@ CREATE TABLE gauntlet_lineups (
 CREATE INDEX idx_gauntlet_lineups_gauntlet_id ON gauntlet_lineups(gauntlet_id);
 CREATE INDEX idx_gauntlet_lineups_match_id ON gauntlet_lineups(match_id);
 CREATE INDEX idx_gauntlet_lineups_boat_id ON gauntlet_lineups(boat_id);
+CREATE INDEX idx_gauntlet_lineups_is_user_lineup ON gauntlet_lineups(is_user_lineup);
 
 -- Gauntlet Seat Assignments Table
 CREATE TABLE gauntlet_seat_assignments (
@@ -492,7 +498,7 @@ CREATE TABLE gauntlet_seat_assignments (
     gauntlet_lineup_id UUID REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
     athlete_id UUID REFERENCES athletes(athlete_id) ON DELETE CASCADE,
     seat_number INTEGER NOT NULL CHECK (seat_number >= 1 AND seat_number <= 8),
-    side TEXT NOT NULL CHECK (side IN ('port', 'starboard')),
+    side TEXT NOT NULL CHECK (side IN ('port', 'starboard', 'scull')),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -523,7 +529,7 @@ CREATE INDEX idx_ladders_gauntlet_id ON ladders(gauntlet_id);
 CREATE TABLE ladder_positions (
     position_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ladder_id UUID REFERENCES ladders(ladder_id) ON DELETE CASCADE,
-    athlete_id UUID REFERENCES athletes(athlete_id) ON DELETE CASCADE,
+    gauntlet_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
     
     -- Position Details
     position INTEGER NOT NULL,
@@ -546,38 +552,40 @@ CREATE TABLE ladder_positions (
     joined_date DATE DEFAULT CURRENT_DATE,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    -- Ensure one position per athlete per ladder
-    UNIQUE(ladder_id, athlete_id)
+    -- Ensure one position per lineup per ladder
+    UNIQUE(ladder_id, gauntlet_lineup_id)
 );
 
 -- Indexes
 CREATE INDEX idx_ladder_positions_ladder_id ON ladder_positions(ladder_id);
-CREATE INDEX idx_ladder_positions_athlete_id ON ladder_positions(athlete_id);
+CREATE INDEX idx_ladder_positions_gauntlet_lineup_id ON ladder_positions(gauntlet_lineup_id);
 CREATE INDEX idx_ladder_positions_position ON ladder_positions(position);
 
 -- Ladder Progressions Table
 CREATE TABLE ladder_progressions (
     progression_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ladder_id UUID REFERENCES ladders(ladder_id) ON DELETE CASCADE,
-    athlete_id UUID REFERENCES athletes(athlete_id) ON DELETE CASCADE,
+    gauntlet_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
     
     -- Progression Details
     from_position INTEGER NOT NULL,
     to_position INTEGER NOT NULL,
     change INTEGER NOT NULL,
-    reason TEXT NOT NULL CHECK (reason IN ('match_win', 'match_loss', 'match_draw', 'manual_adjustment', 'new_athlete')),
+    reason TEXT NOT NULL CHECK (reason IN ('match_win', 'match_loss', 'match_draw', 'manual_adjustment', 'new_lineup')),
     
     -- Reference Information
     match_id UUID REFERENCES gauntlet_matches(match_id) ON DELETE CASCADE,
     notes TEXT,
     
     -- Metadata
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes
 CREATE INDEX idx_ladder_progressions_ladder_id ON ladder_progressions(ladder_id);
-CREATE INDEX idx_ladder_progressions_athlete_id ON ladder_progressions(athlete_id);
+CREATE INDEX idx_ladder_progressions_gauntlet_lineup_id ON ladder_progressions(gauntlet_lineup_id);
 CREATE INDEX idx_ladder_progressions_match_id ON ladder_progressions(match_id);
 
 -- ============================================================================
@@ -720,7 +728,7 @@ COMMENT ON TABLE gauntlet_matches IS 'Individual gauntlet matches';
 COMMENT ON TABLE gauntlet_lineups IS 'Gauntlet lineup configurations';
 COMMENT ON TABLE gauntlet_seat_assignments IS 'Seat assignments for gauntlet lineups';
 COMMENT ON TABLE ladders IS 'Ranking ladder system';
-COMMENT ON TABLE ladder_positions IS 'Athlete positions on ladders';
+COMMENT ON TABLE ladder_positions IS 'Lineup positions on ladders';
 COMMENT ON TABLE ladder_progressions IS 'Position change history';
 COMMENT ON TABLE etl_jobs IS 'ETL job tracking and monitoring';
 COMMENT ON TABLE boat_reservations IS 'Boat usage scheduling across teams';

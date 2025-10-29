@@ -5,7 +5,7 @@ import sequelize from '../config/database';
 interface LadderPositionAttributes {
   position_id: string; // Changed to UUID
   ladder_id: string; // Changed to UUID
-  athlete_id: string; // UUID reference to athletes
+  gauntlet_lineup_id: string; // UUID reference to gauntlet lineups
   position: number; // 1-based position (1 = top of ladder)
   previous_position?: number;
   wins: number;
@@ -31,7 +31,7 @@ class LadderPosition extends Model<LadderPositionAttributes, LadderPositionCreat
   // Public class fields for TypeScript compatibility
   public position_id!: string;
   public ladder_id!: string;
-  public athlete_id!: string;
+  public gauntlet_lineup_id!: string;
   public position!: number;
   public previous_position?: number;
   public wins!: number;
@@ -66,12 +66,12 @@ LadderPosition.init(
       },
       onDelete: 'CASCADE'
     },
-    athlete_id: {
+    gauntlet_lineup_id: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'athletes',
-        key: 'athlete_id'
+        model: 'gauntlet_lineups',
+        key: 'gauntlet_lineup_id'
       },
       onDelete: 'CASCADE'
     },
@@ -159,8 +159,8 @@ LadderPosition.init(
         fields: ['ladder_id']
       },
       {
-        name: 'idx_ladder_positions_athlete_id',
-        fields: ['athlete_id']
+        name: 'idx_ladder_positions_gauntlet_lineup_id',
+        fields: ['gauntlet_lineup_id']
       },
       {
         name: 'idx_ladder_positions_position',
@@ -168,7 +168,7 @@ LadderPosition.init(
       },
       {
         name: 'idx_ladder_positions_unique',
-        fields: ['ladder_id', 'athlete_id'],
+        fields: ['ladder_id', 'gauntlet_lineup_id'],
         unique: true
       }
     ]

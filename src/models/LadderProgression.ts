@@ -5,11 +5,11 @@ import sequelize from '../config/database';
 interface LadderProgressionAttributes {
   progression_id: string; // Changed to UUID
   ladder_id: string; // Changed to UUID
-  athlete_id: string; // UUID reference to athletes
+  gauntlet_lineup_id: string; // UUID reference to gauntlet lineups
   from_position: number;
   to_position: number;
   change: number; // Positive = moved up, Negative = moved down
-  reason: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_athlete';
+  reason: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_lineup';
   match_id?: string; // Optional reference to gauntlet_matches (changed to UUID)
   notes?: string;
   date: Date;
@@ -24,11 +24,11 @@ interface LadderProgressionCreationAttributes extends Optional<LadderProgression
 class LadderProgression extends Model<LadderProgressionAttributes, LadderProgressionCreationAttributes> implements LadderProgressionAttributes {
   public progression_id!: string;
   public ladder_id!: string;
-  public athlete_id!: string;
+  public gauntlet_lineup_id!: string;
   public from_position!: number;
   public to_position!: number;
   public change!: number;
-  public reason!: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_athlete';
+  public reason!: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_lineup';
   public match_id?: string;
   public notes?: string;
   public date!: Date;
@@ -57,12 +57,12 @@ LadderProgression.init(
       },
       onDelete: 'CASCADE'
     },
-    athlete_id: {
+    gauntlet_lineup_id: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'athletes',
-        key: 'athlete_id'
+        model: 'gauntlet_lineups',
+        key: 'gauntlet_lineup_id'
       },
       onDelete: 'CASCADE'
     },
@@ -79,7 +79,7 @@ LadderProgression.init(
       allowNull: false
     },
     reason: {
-      type: DataTypes.ENUM('match_win', 'match_loss', 'match_draw', 'manual_adjustment', 'new_athlete'),
+      type: DataTypes.ENUM('match_win', 'match_loss', 'match_draw', 'manual_adjustment', 'new_lineup'),
       allowNull: false
     },
     match_id: {
@@ -122,8 +122,8 @@ LadderProgression.init(
         fields: ['ladder_id']
       },
       {
-        name: 'idx_ladder_progressions_athlete_id',
-        fields: ['athlete_id']
+        name: 'idx_ladder_progressions_gauntlet_lineup_id',
+        fields: ['gauntlet_lineup_id']
       },
       {
         name: 'idx_ladder_progressions_match_id',

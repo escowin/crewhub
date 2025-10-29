@@ -5,6 +5,8 @@ import sequelize from '../config/database';
 interface GauntletMatchAttributes {
   match_id: string; // UUID
   gauntlet_id: string; // UUID
+  user_lineup_id: string;  // NEW: Reference to user's lineup
+  challenger_lineup_id: string;  // NEW: Reference to challenger's lineup
   workout: string;
   sets: number;
   user_wins: number;
@@ -23,6 +25,8 @@ class GauntletMatch extends Model<GauntletMatchAttributes, GauntletMatchCreation
   // Public class fields for TypeScript compatibility
   public match_id!: string;
   public gauntlet_id!: string;
+  public user_lineup_id!: string;
+  public challenger_lineup_id!: string;
   public workout!: string;
   public sets!: number;
   public user_wins!: number;
@@ -47,6 +51,24 @@ GauntletMatch.init(
       references: {
         model: 'gauntlets',
         key: 'gauntlet_id'
+      },
+      onDelete: 'CASCADE'
+    },
+    user_lineup_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'gauntlet_lineups',
+        key: 'gauntlet_lineup_id'
+      },
+      onDelete: 'CASCADE'
+    },
+    challenger_lineup_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'gauntlet_lineups',
+        key: 'gauntlet_lineup_id'
       },
       onDelete: 'CASCADE'
     },
@@ -96,6 +118,22 @@ GauntletMatch.init(
       {
         name: 'idx_gauntlet_matches_gauntlet_id',
         fields: ['gauntlet_id']
+      },
+      {
+        name: 'idx_gauntlet_matches_match_date',
+        fields: ['match_date']
+      },
+      {
+        name: 'idx_gauntlet_matches_gauntlet_id',
+        fields: ['gauntlet_id']
+      },
+      {
+        name: 'idx_gauntlet_matches_user_lineup_id',
+        fields: ['user_lineup_id']
+      },
+      {
+        name: 'idx_gauntlet_matches_challenger_lineup_id',
+        fields: ['challenger_lineup_id']
       },
       {
         name: 'idx_gauntlet_matches_match_date',
