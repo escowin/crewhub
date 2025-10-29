@@ -88,9 +88,9 @@ router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
               as: 'positions',
               include: [
                 {
-                  model: Athlete,
-                  as: 'athlete',
-                  attributes: ['athlete_id', 'name']
+                  model: GauntletLineup,
+                  as: 'lineup',
+                  attributes: ['gauntlet_lineup_id', 'boat_id']
                 }
               ],
               order: [['position', 'ASC']]
@@ -325,11 +325,105 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       const ladderId = ladder.getDataValue('ladder_id');
       console.log('✅ Ladder created with ID:', ladderId);
 
-      // 3. Create initial ladder position for the user (starting at bottom)
-      console.log('🔍 Creating ladder position with data:', {
+      // 3. Create all lineups FIRST (user + challengers) before assigning ladder positions
+      console.log('🔍 Creating all lineups...');
+      
+      // 3a. Create user lineup
+      const userLineup = await GauntletLineup.create({
+        gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
+        gauntlet_id: gauntletId,
+        boat_id: userBoat.selectedBoat.id,
+        is_user_lineup: true // Mark as user lineup
+      }, { transaction });
+
+      const userLineupId = userLineup.getDataValue('gauntlet_lineup_id');
+      console.log('✅ User lineup created with ID:', userLineupId);
+
+      // 3b. Create seat assignments for user boat
+      if (userBoat.selectedRowers && userBoat.selectedRowers.length > 0) {
+        for (let index = 0; index < userBoat.selectedRowers.length; index++) {
+          const rower = userBoat.selectedRowers[index];
+          const seatNumber = index + 1;
+          const isScullingBoat = ['1x', '2x', '4x'].includes(boat_type);
+          const side = isScullingBoat ? 'scull' : (seatNumber % 2 === 1 ? 'port' : 'starboard');
+          
+          await GauntletSeatAssignment.create({
+            gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
+            gauntlet_lineup_id: userLineupId,
+            athlete_id: rower.id,
+            seat_number: seatNumber,
+            side
+          }, { transaction });
+        }
+      }
+
+      // 3c. Create challenger lineups and seat assignments
+      const challengerLineupIds: string[] = [];
+      for (const challenger of challengers) {
+        if (challenger.selectedBoat && challenger.selectedRowers && challenger.selectedRowers.length > 0) {
+          const challengerLineup = await GauntletLineup.create({
+            gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
+            gauntlet_id: gauntletId,
+            boat_id: challenger.selectedBoat.id,
+            is_user_lineup: false // Mark as challenger lineup
+          }, { transaction });
+
+          const challengerLineupId = challengerLineup.getDataValue('gauntlet_lineup_id');
+          challengerLineupIds.push(challengerLineupId);
+
+          for (let index = 0; index < challenger.selectedRowers.length; index++) {
+            const rower = challenger.selectedRowers[index];
+            const seatNumber = index + 1;
+            const isScullingBoat = ['1x', '2x', '4x'].includes(boat_type);
+            const side = isScullingBoat ? 'scull' : (seatNumber % 2 === 1 ? 'port' : 'starboard');
+            
+            await GauntletSeatAssignment.create({
+              gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
+              gauntlet_lineup_id: challengerLineupId,
+              athlete_id: rower.id,
+              seat_number: seatNumber,
+              side
+            }, { transaction });
+          }
+        }
+      }
+
+      console.log(`✅ Created ${challengerLineupIds.length} challenger lineups`);
+
+      // 4. Create ladder positions: challengers at top, user at bottom
+      console.log('🔍 Creating ladder positions...');
+      
+      // 4a. Create ladder positions for challengers (top positions: 1, 2, 3...)
+      let positionNumber = 1;
+      for (const challengerLineupId of challengerLineupIds) {
+        await LadderPosition.create({
+          position_id: randomUUID(),
+          ladder_id: ladderId,
+          gauntlet_lineup_id: challengerLineupId,
+          position: positionNumber, // Top positions
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          win_rate: 0.00,
+          total_matches: 0,
+          points: 0,
+          streak_type: 'none',
+          streak_count: 0,
+          joined_date: new Date(),
+          last_updated: new Date(),
+          created_at: new Date(),
+          updated_at: new Date()
+        }, { transaction });
+        positionNumber++;
+      }
+
+      // 4b. Create ladder position for user (bottom position: last)
+      const userPosition = positionNumber; // Bottom position
+      await LadderPosition.create({
+        position_id: randomUUID(),
         ladder_id: ladderId,
-        athlete_id: created_by,
-        position: 1,
+        gauntlet_lineup_id: userLineupId,
+        position: userPosition, // Bottom position
         wins: 0,
         losses: 0,
         draws: 0,
@@ -342,104 +436,50 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
         last_updated: new Date(),
         created_at: new Date(),
         updated_at: new Date()
-      });
-      
-      await LadderPosition.create({
-        position_id: randomUUID(), // Generate UUID for primary key
-        ladder_id: ladderId,
-        athlete_id: created_by,
-        position: 1, // Start at bottom position
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        win_rate: 0.00,
-        total_matches: 0,
-        points: 0,
-        streak_type: 'none',
-        streak_count: 0,
-        joined_date: new Date(), // DATEONLY format - Sequelize will handle the conversion
-        last_updated: new Date(), // DATE format
-        created_at: new Date(), // Add missing created_at field
-        updated_at: new Date() // Add missing updated_at field
       }, { transaction });
 
-      // 4. Create initial ladder progression record
-      console.log('🔍 Creating ladder progression with data:', {
+      console.log(`✅ Created ladder positions: challengers at positions 1-${challengerLineupIds.length}, user at position ${userPosition}`);
+
+      // 5. Create initial ladder progression records for all lineups
+      console.log('🔍 Creating ladder progressions...');
+      
+      // 5a. Create progressions for challengers
+      for (let i = 0; i < challengerLineupIds.length; i++) {
+        const challengerLineupId = challengerLineupIds[i];
+        if (!challengerLineupId) continue; // Safety check
+        
+        const challengerPosition = i + 1;
+        await LadderProgression.create({
+          progression_id: randomUUID(),
+          ladder_id: ladderId,
+          gauntlet_lineup_id: challengerLineupId,
+          from_position: 0,
+          to_position: challengerPosition,
+          change: challengerPosition,
+          reason: 'new_lineup',
+          notes: `Initial ladder entry - challenger starting at position ${challengerPosition}`,
+          date: new Date(),
+          created_at: new Date(),
+          updated_at: new Date()
+        }, { transaction });
+      }
+
+      // 5b. Create progression for user (bottom position)
+      await LadderProgression.create({
+        progression_id: randomUUID(),
         ladder_id: ladderId,
-        athlete_id: created_by,
+        gauntlet_lineup_id: userLineupId,
         from_position: 0,
-        to_position: 1,
-        change: 1,
-        reason: 'new_athlete',
-        notes: 'Initial ladder entry - starting at bottom position',
+        to_position: userPosition,
+        change: userPosition,
+        reason: 'new_lineup',
+        notes: `Initial ladder entry - user starting at bottom position ${userPosition}`,
         date: new Date(),
         created_at: new Date(),
         updated_at: new Date()
-      });
-      
-      await LadderProgression.create({
-        progression_id: randomUUID(), // Generate UUID for primary key
-        ladder_id: ladderId,
-        athlete_id: created_by,
-        from_position: 0, // No previous position (0 indicates starting)
-        to_position: 1, // Starting at bottom position
-        change: 1, // Positive change (entering the ladder)
-        reason: 'new_athlete',
-        notes: 'Initial ladder entry - starting at bottom position',
-        date: new Date(),
-        created_at: new Date(), // Add missing created_at field
-        updated_at: new Date() // Add missing updated_at field
       }, { transaction });
 
-      const userLineup = await GauntletLineup.create({
-        gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
-        gauntlet_id: gauntletId,
-        boat_id: userBoat.selectedBoat.id
-      }, { transaction });
-
-      // 6. Create seat assignments for user boat
-      if (userBoat.selectedRowers && userBoat.selectedRowers.length > 0) {
-        for (let index = 0; index < userBoat.selectedRowers.length; index++) {
-          const rower = userBoat.selectedRowers[index];
-          const seatNumber = index + 1;
-          const isScullingBoat = ['1x', '2x', '4x'].includes(boat_type);
-          const side = isScullingBoat ? 'scull' : (seatNumber % 2 === 1 ? 'port' : 'starboard');
-          
-          await GauntletSeatAssignment.create({
-            gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
-            gauntlet_lineup_id: userLineup.getDataValue('gauntlet_lineup_id'),
-            athlete_id: rower.id,
-            seat_number: seatNumber,
-            side
-          }, { transaction });
-        }
-      }
-
-      // 7. Create challenger lineups and seat assignments
-      for (const challenger of challengers) {
-        if (challenger.selectedBoat && challenger.selectedRowers && challenger.selectedRowers.length > 0) {
-          const challengerLineup = await GauntletLineup.create({
-            gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
-            gauntlet_id: gauntletId,
-            boat_id: challenger.selectedBoat.id
-          }, { transaction });
-
-          for (let index = 0; index < challenger.selectedRowers.length; index++) {
-            const rower = challenger.selectedRowers[index];
-            const seatNumber = index + 1;
-            const isScullingBoat = ['1x', '2x', '4x'].includes(boat_type);
-            const side = isScullingBoat ? 'scull' : (seatNumber % 2 === 1 ? 'port' : 'starboard');
-            
-            await GauntletSeatAssignment.create({
-              gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
-              gauntlet_lineup_id: challengerLineup.getDataValue('gauntlet_lineup_id'),
-              athlete_id: rower.id,
-              seat_number: seatNumber,
-              side
-            }, { transaction });
-          }
-        }
-      }
+      console.log(`✅ Created ladder progressions for all ${challengerLineupIds.length + 1} lineups`);
 
       // Commit the transaction
       await transaction.commit();
