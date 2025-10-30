@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Ladder, LadderPosition, Athlete, Gauntlet } from '../models';
+import { GauntletLadder, GauntletPosition, Athlete, Gauntlet } from '../models';
 import { authMiddleware } from '../auth/middleware';
 
 const router = Router();
@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/', authMiddleware.verifyToken, async (_req: Request, res: Response) => {
   try {
-    const ladders = await Ladder.findAll({
+    const ladders = await GauntletLadder.findAll({
       include: [
         {
           model: Gauntlet,
@@ -48,7 +48,7 @@ router.get('/:id/positions', authMiddleware.verifyToken, async (req: Request, re
     const { id } = req.params;
 
     // Check if ladder exists
-    const ladder = await Ladder.findByPk(id);
+    const ladder = await GauntletLadder.findByPk(id);
     if (!ladder) {
       return res.status(404).json({
         success: false,
@@ -58,7 +58,7 @@ router.get('/:id/positions', authMiddleware.verifyToken, async (req: Request, re
       });
     }
 
-    const positions = await LadderPosition.findAll({
+    const positions = await GauntletPosition.findAll({
       where: { ladder_id: id },
       include: [
         {
@@ -144,7 +144,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       });
     }
 
-    const ladder = await Ladder.create({
+    const ladder = await GauntletLadder.create({
       gauntlet_id
     });
 
@@ -185,7 +185,7 @@ router.put('/:ladderId', authMiddleware.verifyToken, async (req: Request, res: R
     }
 
     // Find the ladder with its associated gauntlet
-    const ladder = await Ladder.findByPk(ladderId, {
+    const ladder = await GauntletLadder.findByPk(ladderId, {
       include: [{
         model: Gauntlet,
         as: 'gauntlet'
@@ -255,7 +255,7 @@ router.delete('/:ladderId', authMiddleware.verifyToken, async (req: Request, res
     }
 
     // Find the ladder with its associated gauntlet
-    const ladder = await Ladder.findByPk(ladderId, {
+    const ladder = await GauntletLadder.findByPk(ladderId, {
       include: [{
         model: Gauntlet,
         as: 'gauntlet'

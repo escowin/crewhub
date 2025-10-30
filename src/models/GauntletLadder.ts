@@ -2,7 +2,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
 // Define the attributes interface
-interface LadderAttributes {
+interface GauntletLadderAttributes {
   ladder_id: string; // Changed to UUID
   gauntlet_id: string; // UUID reference to gauntlets
   created_at: Date;
@@ -10,10 +10,10 @@ interface LadderAttributes {
 }
 
 // Define the creation attributes interface
-interface LadderCreationAttributes extends Optional<LadderAttributes, 'ladder_id' | 'created_at' | 'updated_at'> {}
+interface GauntletLadderCreationAttributes extends Optional<GauntletLadderAttributes, 'ladder_id' | 'created_at' | 'updated_at'> {}
 
 // Define the model class
-class Ladder extends Model<LadderAttributes, LadderCreationAttributes> implements LadderAttributes {
+class GauntletLadder extends Model<GauntletLadderAttributes, GauntletLadderCreationAttributes> implements GauntletLadderAttributes {
   public ladder_id!: string;
   public gauntlet_id!: string;
   public created_at!: Date;
@@ -25,7 +25,7 @@ class Ladder extends Model<LadderAttributes, LadderCreationAttributes> implement
 }
 
 // Initialize the model
-Ladder.init(
+GauntletLadder.init(
   {
     ladder_id: {
       type: DataTypes.UUID,
@@ -54,7 +54,7 @@ Ladder.init(
   },
   {
     sequelize,
-    modelName: 'Ladder',
+    modelName: 'GauntletLadder',
     tableName: 'gauntlet_ladders',
     timestamps: true,
     createdAt: 'created_at',
@@ -68,4 +68,4 @@ Ladder.init(
   }
 );
 
-export default Ladder;
+export default GauntletLadder;

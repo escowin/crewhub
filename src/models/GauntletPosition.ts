@@ -2,7 +2,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
 // Define the attributes interface
-interface LadderPositionAttributes {
+interface GauntletPositionAttributes {
   position_id: string; // Changed to UUID
   ladder_id: string; // Changed to UUID
   gauntlet_lineup_id: string; // UUID reference to gauntlet lineups
@@ -24,10 +24,10 @@ interface LadderPositionAttributes {
 }
 
 // Define the creation attributes interface
-interface LadderPositionCreationAttributes extends Optional<LadderPositionAttributes, 'position_id' | 'previous_position' | 'wins' | 'losses' | 'draws' | 'win_rate' | 'total_matches' | 'points' | 'streak_type' | 'streak_count' | 'last_match_date' | 'joined_date' | 'last_updated' | 'created_at' | 'updated_at'> {}
+interface GauntletPositionCreationAttributes extends Optional<GauntletPositionAttributes, 'position_id' | 'previous_position' | 'wins' | 'losses' | 'draws' | 'win_rate' | 'total_matches' | 'points' | 'streak_type' | 'streak_count' | 'last_match_date' | 'joined_date' | 'last_updated' | 'created_at' | 'updated_at'> {}
 
 // Define the model class
-class LadderPosition extends Model<LadderPositionAttributes, LadderPositionCreationAttributes> {
+class GauntletPosition extends Model<GauntletPositionAttributes, GauntletPositionCreationAttributes> {
   // Use declare to avoid emitting class fields that shadow Sequelize accessors
   declare position_id: string;
   declare ladder_id: string;
@@ -50,7 +50,7 @@ class LadderPosition extends Model<LadderPositionAttributes, LadderPositionCreat
 }
 
 // Initialize the model
-LadderPosition.init(
+GauntletPosition.init(
   {
     position_id: {
       type: DataTypes.UUID,
@@ -150,7 +150,7 @@ LadderPosition.init(
   },
   {
     sequelize,
-    modelName: 'LadderPosition',
+    modelName: 'GauntletPosition',
     tableName: 'gauntlet_positions',
     timestamps: false, // Using custom timestamp fields
     indexes: [
@@ -175,4 +175,4 @@ LadderPosition.init(
   }
 );
 
-export default LadderPosition;
+export default GauntletPosition;

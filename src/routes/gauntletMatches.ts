@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { GauntletMatch, Gauntlet } from '../models';
 import sequelize from '../config/database';
 import { authMiddleware } from '../auth/middleware';
-import { LadderService } from '../services/ladderService';
+import { GauntletService } from '../services/gauntletService';
 
 const router = Router();
 
@@ -161,7 +161,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
 
       if (process_ladder) {
         console.log('📈 GauntletMatches API: Processing ladder updates...');
-        const ladderResult = await LadderService.processMatchResult({
+        const ladderResult = await GauntletService.processMatchResult({
           match_id: match.get('match_id') as string,
           gauntlet_id: gauntlet_id,
           user_lineup_id: user_lineup_id,

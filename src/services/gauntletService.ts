@@ -1,8 +1,8 @@
-import { GauntletMatch, LadderPosition, Ladder } from '../models';
+import { GauntletMatch, GauntletPosition, GauntletLadder } from '../models';
 import { randomUUID } from 'crypto';
 import sequelize from '../config/database';
 
-export class LadderService {
+export class GauntletService {
   /**
    * Process a match result and update ladder positions atomically
    * This is the core atomic operation that ensures data consistency
@@ -21,10 +21,10 @@ export class LadderService {
     match: GauntletMatch;
     ladderUpdate: {
       userLineup: {
-        updatedPosition: LadderPosition;
+        updatedPosition: GauntletPosition;
       };
       challengerLineup: {
-        updatedPosition: LadderPosition;
+        updatedPosition: GauntletPosition;
       };
     };
   }> {
@@ -34,14 +34,14 @@ export class LadderService {
     
     try {
       // 1. Get or create the ladder for this gauntlet
-      let ladder = await Ladder.findOne({
+      let ladder = await GauntletLadder.findOne({
         where: { gauntlet_id: matchData.gauntlet_id },
         transaction
       });
       
       if (!ladder) {
         console.log('No ladder found for gauntlet, creating one...');
-        ladder = await Ladder.create({
+        ladder = await GauntletLadder.create({
           ladder_id: randomUUID(),
           gauntlet_id: matchData.gauntlet_id
         }, { transaction });
@@ -73,7 +73,6 @@ export class LadderService {
           sets: matchData.sets,
           match_date: matchData.match_date
         },
-        matchData.match_id,
         transaction
       );
 
@@ -88,7 +87,6 @@ export class LadderService {
           sets: matchData.sets,
           match_date: matchData.match_date
         },
-        matchData.match_id,
         transaction
       );
 
@@ -132,13 +130,12 @@ export class LadderService {
       sets: number;
       match_date: Date;
     },
-    matchId: string,
     transaction: any
   ): Promise<{
-    updatedPosition: LadderPosition;
+    updatedPosition: GauntletPosition;
   }> {
     // Get or create ladder position for the lineup
-    let currentPosition = await LadderPosition.findOne({
+    let currentPosition = await GauntletPosition.findOne({
       where: {
         ladder_id: ladderId,
         gauntlet_lineup_id: lineupId
@@ -149,13 +146,13 @@ export class LadderService {
     if (!currentPosition) {
       console.log('No ladder position found for lineup, creating one...');
       // Get the next available position (highest position + 1)
-      const maxPosition = await LadderPosition.max('position', {
+      const maxPosition = await GauntletPosition.max('position', {
         where: { ladder_id: ladderId },
         transaction
       }) as number | null;
       const nextPosition = (maxPosition || 0) + 1;
       
-      currentPosition = await LadderPosition.create({
+      currentPosition = await GauntletPosition.create({
         position_id: (currentPosition as any)?.position_id || randomUUID(),
         ladder_id: ladderId,
         gauntlet_lineup_id: lineupId,
@@ -198,7 +195,7 @@ export class LadderService {
   }
 
   private static async updateLadderPosition(
-    currentPosition: LadderPosition,
+    currentPosition: GauntletPosition,
     matchResult: 'match_win' | 'match_loss' | 'match_draw',
     matchStats: {
       wins: number;
@@ -207,7 +204,7 @@ export class LadderService {
       match_date: Date;
     },
     transaction: any
-  ): Promise<LadderPosition> {
+  ): Promise<GauntletPosition> {
     // Statistics are recorded per match (not per set)
     const winIncrement = matchResult === 'match_win' ? 1 : 0;
     const lossIncrement = matchResult === 'match_loss' ? 1 : 0;
@@ -275,13 +272,13 @@ export class LadderService {
   }
 
   private static async calculateNewPosition(
-    currentPosition: LadderPosition,
+    currentPosition: GauntletPosition,
     matchResult: 'match_win' | 'match_loss' | 'match_draw',
     ladderId: string,
     transaction: any
   ): Promise<number> {
     // Get total number of positions in ladder
-    const totalPositions = await LadderPosition.count({
+    const totalPositions = await GauntletPosition.count({
       where: { ladder_id: ladderId },
       transaction
     });

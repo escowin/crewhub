@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { LadderPosition, Ladder, GauntletLineup } from '../models';
+import { GauntletPosition, GauntletLadder, GauntletLineup } from '../models';
 import { authMiddleware } from '../auth/middleware';
 
 const router = Router();
@@ -40,7 +40,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     }
 
     // Check if ladder exists
-    const ladder = await Ladder.findByPk(ladder_id);
+    const ladder = await GauntletLadder.findByPk(ladder_id);
     if (!ladder) {
       return res.status(404).json({
         success: false,
@@ -83,7 +83,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     }
 
     // Check if gauntlet lineup already has a position in this ladder
-    const existingPosition = await LadderPosition.findOne({
+    const existingPosition = await GauntletPosition.findOne({
       where: {
         ladder_id,
         gauntlet_lineup_id
@@ -100,7 +100,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     }
 
     // Create ladder position
-    const ladderPosition = await LadderPosition.create({
+    const ladderPosition = await GauntletPosition.create({
       position_id: position_id || randomUUID(), // Accept client UUID or generate
       ladder_id,
       gauntlet_lineup_id,
@@ -119,7 +119,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     });
 
     // Fetch the created position with associations
-    const createdPosition = await LadderPosition.findByPk(ladderPosition.position_id, {
+    const createdPosition = await GauntletPosition.findByPk(ladderPosition.position_id, {
       include: [
         {
           model: GauntletLineup,
@@ -127,7 +127,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: Ladder,
+          model: GauntletLadder,
           as: 'ladder'
         }
       ]
@@ -160,7 +160,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
     const { id } = req.params;
     const updates = req.body;
 
-    const position = await LadderPosition.findByPk(id);
+    const position = await GauntletPosition.findByPk(id);
     if (!position) {
       return res.status(404).json({
         success: false,
@@ -196,7 +196,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
     await position.update(updates);
 
     // Fetch updated position with associations
-    const updatedPosition = await LadderPosition.findByPk(id, {
+    const updatedPosition = await GauntletPosition.findByPk(id, {
       include: [
         {
           model: GauntletLineup,
@@ -204,7 +204,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['gauntlet_lineup_id', 'is_user_lineup']
         },
         {
-          model: Ladder,
+          model: GauntletLadder,
           as: 'ladder'
         }
       ]

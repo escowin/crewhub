@@ -5,8 +5,8 @@ import {
   GauntletMatch, 
   GauntletLineup, 
   GauntletSeatAssignment,
-  Ladder,
-  LadderPosition,
+  GauntletLadder,
+  GauntletPosition,
   Athlete
 } from '../models';
 import { authMiddleware } from '../auth/middleware';
@@ -79,11 +79,11 @@ router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: Ladder,
+          model: GauntletLadder,
           as: 'ladder',
           include: [
             {
-              model: LadderPosition,
+              model: GauntletPosition,
               as: 'positions',
               include: [
                 {
@@ -316,7 +316,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
 
       // 2. Create ladder
       console.log('🔍 Creating ladder...');
-      const ladder = await Ladder.create({
+      const ladder = await GauntletLadder.create({
         ladder_id: ladder_id || randomUUID(), // Use provided UUID or generate one
         gauntlet_id: gauntletId
       }, { transaction });
@@ -395,7 +395,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       // 4a. Create ladder positions for challengers (top positions: 1, 2, 3...)
       let positionNumber = 1;
       for (const challengerLineupId of challengerLineupIds) {
-        await LadderPosition.create({
+        await GauntletPosition.create({
           position_id: (req.body as any)?.positions?.[positionNumber - 1]?.position_id || randomUUID(), // Optional client UUID
           ladder_id: ladderId,
           gauntlet_lineup_id: challengerLineupId,
@@ -418,7 +418,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
 
       // 4b. Create ladder position for user (bottom position: last)
       const userPosition = positionNumber; // Bottom position
-      await LadderPosition.create({
+      await GauntletPosition.create({
         position_id: (req.body as any)?.positions?.[userPosition - 1]?.position_id || randomUUID(), // Optional client UUID
         ladder_id: ladderId,
         gauntlet_lineup_id: userLineupId,
@@ -452,11 +452,11 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
             attributes: ['athlete_id', 'name', 'email']
           },
           {
-            model: Ladder,
+            model: GauntletLadder,
             as: 'ladder',
             include: [
               {
-                model: LadderPosition,
+                model: GauntletPosition,
                 as: 'positions',
                 include: [
                   {
@@ -601,7 +601,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: Ladder,
+          model: GauntletLadder,
           as: 'ladder'
         }
       ]
@@ -650,8 +650,8 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
       GauntletSeatAssignment.count({ 
         include: [{ model: GauntletLineup, as: 'lineup', where: { gauntlet_id: id } }]
       }),
-      LadderPosition.count({ 
-        include: [{ model: Ladder, as: 'ladder', where: { gauntlet_id: id } }]
+      GauntletPosition.count({ 
+        include: [{ model: GauntletLadder, as: 'ladder', where: { gauntlet_id: id } }]
       })
     ]);
 
@@ -680,7 +680,7 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
       );
 
       // 4. Delete ladders
-      await Ladder.destroy({
+      await GauntletLadder.destroy({
         where: { gauntlet_id: id }
       });
     }

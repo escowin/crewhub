@@ -21,8 +21,8 @@ import Gauntlet from './Gauntlet';
 import GauntletMatch from './GauntletMatch';
 import GauntletLineup from './GauntletLineup';
 import GauntletSeatAssignment from './GauntletSeatAssignment';
-import Ladder from './Ladder';
-import LadderPosition from './LadderPosition';
+import GauntletLadder from './GauntletLadder';
+import GauntletPosition from './GauntletPosition';
 
 // Define associations
 export function setupAssociations() {
@@ -347,38 +347,38 @@ export function setupAssociations() {
     as: 'athlete'
   });
 
-  // Gauntlet -> Ladder (One-to-One) - simplified relationship
-  Gauntlet.hasOne(Ladder, {
+  // Gauntlet -> GauntletLadder (One-to-One) - simplified relationship
+  Gauntlet.hasOne(GauntletLadder, {
     foreignKey: 'gauntlet_id',
     as: 'ladder',
     onDelete: 'CASCADE'
   });
 
-  Ladder.belongsTo(Gauntlet, {
+  GauntletLadder.belongsTo(Gauntlet, {
     foreignKey: 'gauntlet_id',
     as: 'gauntlet'
   });
 
-  // Ladder -> LadderPosition (One-to-Many)
-  Ladder.hasMany(LadderPosition, {
+  // GauntletLadder -> GauntletPosition (One-to-Many)
+  GauntletLadder.hasMany(GauntletPosition, {
     foreignKey: 'ladder_id',
     as: 'positions',
     onDelete: 'CASCADE'
   });
 
-  LadderPosition.belongsTo(Ladder, {
+  GauntletPosition.belongsTo(GauntletLadder, {
     foreignKey: 'ladder_id',
     as: 'ladder'
   });
 
-  // GauntletLineup -> LadderPosition (One-to-Many)
-  GauntletLineup.hasMany(LadderPosition, {
+  // GauntletLineup -> GauntletPosition (One-to-Many)
+  GauntletLineup.hasMany(GauntletPosition, {
     foreignKey: 'gauntlet_lineup_id',
     as: 'ladder_positions',
     onDelete: 'CASCADE'
   });
 
-  LadderPosition.belongsTo(GauntletLineup, {
+  GauntletPosition.belongsTo(GauntletLineup, {
     foreignKey: 'gauntlet_lineup_id',
     as: 'lineup'
   });
@@ -411,8 +411,8 @@ export {
   GauntletMatch,
   GauntletLineup,
   GauntletSeatAssignment,
-  Ladder,
-  LadderPosition
+  GauntletLadder,
+  GauntletPosition
 };
 
 export default sequelize;
