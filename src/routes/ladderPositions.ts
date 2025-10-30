@@ -12,6 +12,7 @@ const router = Router();
 router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
     const {
+      position_id,
       ladder_id,
       gauntlet_lineup_id,
       position,
