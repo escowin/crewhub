@@ -332,7 +332,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       const userLineup = await GauntletLineup.create({
         gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
         gauntlet_id: gauntletId,
-        boat_id: userBoat.selectedBoat.id,
+        boat_id: userBoat.selectedBoat.boat_id,
         is_user_lineup: true // Mark as user lineup
       }, { transaction });
 
@@ -350,7 +350,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
           await GauntletSeatAssignment.create({
             gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
             gauntlet_lineup_id: userLineupId,
-            athlete_id: rower.id,
+            athlete_id: rower.athlete_id,
             seat_number: seatNumber,
             side
           }, { transaction });
@@ -364,7 +364,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
           const challengerLineup = await GauntletLineup.create({
             gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
             gauntlet_id: gauntletId,
-            boat_id: challenger.selectedBoat.id,
+            boat_id: challenger.selectedBoat.boat_id,
             is_user_lineup: false // Mark as challenger lineup
           }, { transaction });
 
@@ -380,7 +380,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
             await GauntletSeatAssignment.create({
               gauntlet_seat_assignment_id: randomUUID(), // Generate UUID for primary key
               gauntlet_lineup_id: challengerLineupId,
-              athlete_id: rower.id,
+              athlete_id: rower.athlete_id,
               seat_number: seatNumber,
               side
             }, { transaction });
@@ -502,9 +502,9 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
                 as: 'positions',
                 include: [
                   {
-                    model: Athlete,
-                    as: 'athlete',
-                    attributes: ['athlete_id', 'name', 'email']
+                    model: GauntletLineup,
+                    as: 'lineup',
+                    attributes: ['gauntlet_lineup_id', 'boat_id', 'is_user_lineup']
                   }
                 ],
                 order: [['position', 'ASC']]
@@ -514,9 +514,9 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
                 as: 'progressions',
                 include: [
                   {
-                    model: Athlete,
-                    as: 'athlete',
-                    attributes: ['athlete_id', 'name', 'email']
+                    model: GauntletLineup,
+                    as: 'lineup',
+                    attributes: ['gauntlet_lineup_id', 'boat_id', 'is_user_lineup']
                   }
                 ],
                 order: [['date', 'DESC']]

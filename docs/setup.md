@@ -418,7 +418,7 @@ To avoid conflicts between services, use this port allocation:
 **crewhub/.env:**
 ```bash
 PORT=3001
-CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
+CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173
 ```
 
 **boathouse-etl/.env:**
