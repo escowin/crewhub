@@ -211,8 +211,8 @@ DELETE gauntlet → CASCADE deletes:
 ├── gauntlet_lineups
 │   └── gauntlet_seat_assignments
 ├── gauntlet_matches
-└── ladders
-    └── ladder_positions
+└── gauntlet_ladders
+    └── gauntlet_positions
 ```
 
 **Tables:**
@@ -220,8 +220,8 @@ DELETE gauntlet → CASCADE deletes:
 - `gauntlet_matches` - Individual match records
 - `gauntlet_lineups` - Lineup configurations
 - `gauntlet_seat_assignments` - Seat assignments
-- `ladders` - Ranking ladder system
-- `ladder_positions` - Lineup positions (tracks position changes via `previous_position` and `position` fields)
+- `gauntlet_ladders` - Ranking ladder system for gauntlets
+- `gauntlet_positions` - Lineup positions on gauntlet ladders (tracks position changes via `previous_position` and `position` fields)
 
 ### 16. ETL Jobs Tracking Table
 For monitoring data synchronization. See `schema.sql` for complete table definition.

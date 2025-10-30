@@ -61,7 +61,7 @@ LadderPosition.init(
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'ladders',
+        model: 'gauntlet_ladders',
         key: 'ladder_id'
       },
       onDelete: 'CASCADE'
@@ -151,7 +151,7 @@ LadderPosition.init(
   {
     sequelize,
     modelName: 'LadderPosition',
-    tableName: 'ladder_positions',
+    tableName: 'gauntlet_positions',
     timestamps: false, // Using custom timestamp fields
     indexes: [
       {

@@ -6,7 +6,7 @@ This document outlines the complete relationship structure of the **CrewHub data
 ## Core Entity Types
 
 ### Primary Key Strategies
-- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `ladders`, `ladder_positions`
+- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `gauntlet_ladders`, `gauntlet_positions`
 - **Auto-increment Integer Primary Keys**: `teams`, `practice_sessions`, `lineups`, `seat_assignments`, `attendance`, `usra_categories`, `mailing_lists`, `regattas`, `regatta_registrations`, `races`, `erg_tests`, `etl_jobs`, `team_memberships`
 
 ## Complete Database Relationship Diagram
@@ -264,17 +264,17 @@ erDiagram
         timestamp updated_at
     }
 
-    LADDERS {
+    GAUNTLET_LADDERS {
         uuid ladder_id PK
         uuid gauntlet_id FK
         timestamp created_at
         timestamp updated_at
     }
 
-    LADDER_POSITIONS {
+    GAUNTLET_POSITIONS {
         uuid position_id PK
         uuid ladder_id FK
-        uuid athlete_id FK
+        uuid gauntlet_lineup_id FK
         integer position
         integer previous_position
         integer wins
@@ -320,9 +320,9 @@ erDiagram
     BOATS ||--o{ GAUNTLET_LINEUPS : "used in"
     GAUNTLET_LINEUPS ||--o{ GAUNTLET_SEAT_ASSIGNMENTS : "contains"
     ATHLETES ||--o{ GAUNTLET_SEAT_ASSIGNMENTS : "assigned to"
-    GAUNTLETS ||--|| LADDERS : "has one ladder"
-    LADDERS ||--o{ LADDER_POSITIONS : "ranks"
-    GAUNTLET_LINEUPS ||--o{ LADDER_POSITIONS : "participates in"
+    GAUNTLETS ||--|| GAUNTLET_LADDERS : "has one ladder"
+    GAUNTLET_LADDERS ||--o{ GAUNTLET_POSITIONS : "ranks"
+    GAUNTLET_LINEUPS ||--o{ GAUNTLET_POSITIONS : "participates in"
 ```
 
 ## Core Boathouse Management System
@@ -428,8 +428,8 @@ DELETE gauntlet → CASCADE deletes:
 ├── gauntlet_lineups
 │   └── gauntlet_seat_assignments
 ├── gauntlet_matches
-└── ladders
-    └── ladder_positions
+└── gauntlet_ladders
+    └── gauntlet_positions
 ```
 
 ### 6. Gauntlet System
@@ -454,15 +454,15 @@ athletes (UUID) ←→ gauntlet_seat_assignments (UUID) [CASCADE]
 
 ### 7. Ladder System
 ```
-gauntlets (UUID) ←→ ladders (UUID) [1:1, CASCADE]
-ladders (UUID) ←→ ladder_positions (UUID) [CASCADE]
-gauntlet_lineups (UUID) ←→ ladder_positions (UUID) [CASCADE]
+gauntlets (UUID) ←→ gauntlet_ladders (UUID) [1:1, CASCADE]
+gauntlet_ladders (UUID) ←→ gauntlet_positions (UUID) [CASCADE]
+gauntlet_lineups (UUID) ←→ gauntlet_positions (UUID) [CASCADE]
 ```
 
 **Key Relationships:**
-- **One-to-One**: Gauntlets → Ladders (auto-created, CASCADE)
-- **One-to-Many**: Ladders → LadderPositions
-- **One-to-Many**: GauntletLineups → LadderPositions
+- **One-to-One**: Gauntlets → GauntletLadders (auto-created, CASCADE)
+- **One-to-Many**: GauntletLadders → GauntletPositions
+- **One-to-Many**: GauntletLineups → GauntletPositions
 
 ## Cross-System Integration Points
 
@@ -500,9 +500,9 @@ Athlete → RegattaRegistration → Regatta
 
 ### 13. Rowcalibur Competitive Workflow (Simplified)
 ```
-Athlete → Gauntlet → Ladder (auto-created)
+Athlete → Gauntlet → GauntletLadder (auto-created)
 Athlete → Gauntlet → GauntletMatch → GauntletLineup (2 per match) → GauntletSeatAssignment
-GauntletLineup → Ladder → LadderPosition
+GauntletLineup → GauntletLadder → GauntletPosition
 ```
 
 ## Key Design Decisions
@@ -514,7 +514,7 @@ GauntletLineup → Ladder → LadderPosition
 ### 15. Two-Side Match Structure
 - **GauntletMatch → GauntletLineup**: Each match has exactly 2 lineups (user & challenger sides)
 - **GauntletLineup → GauntletSeatAssignment**: Each lineup has detailed seat assignments
-- **LadderPosition**: Tracks position history via `previous_position` and `position` fields
+- **GauntletPosition**: Tracks position history via `previous_position` and `position` fields
 
 ### 16. Cross-Reference Strategy
 - **Athlete-Centric**: All competitive activities tie back to athletes
@@ -530,7 +530,7 @@ SELECT a.*, tm.role, g.name as gauntlet_name, lp.position
 FROM athletes a
 LEFT JOIN team_memberships tm ON a.athlete_id = tm.athlete_id
 LEFT JOIN gauntlets g ON a.athlete_id = g.created_by
-LEFT JOIN ladder_positions lp ON a.athlete_id = (SELECT gl.gauntlet_lineup_id FROM gauntlet_lineups gl WHERE gl.gauntlet_lineup_id = lp.gauntlet_lineup_id);
+LEFT JOIN gauntlet_positions lp ON a.athlete_id = (SELECT gl.gauntlet_lineup_id FROM gauntlet_lineups gl WHERE gl.gauntlet_lineup_id = lp.gauntlet_lineup_id);
 
 -- Gauntlet match with both lineups and seat assignments
 SELECT 

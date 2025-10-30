@@ -660,7 +660,7 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
     
     // 1. Find all ladder IDs for this gauntlet
     const ladderResults = await sequelize.query(
-      'SELECT ladder_id FROM ladders WHERE gauntlet_id = :gauntletId',
+      'SELECT ladder_id FROM gauntlet_ladders WHERE gauntlet_id = :gauntletId',
       {
         replacements: { gauntletId: id },
         type: QueryTypes.SELECT
@@ -670,9 +670,9 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
     const ladderIds = ladderResults.map(r => r.ladder_id);
     
     if (ladderIds.length > 0) {
-      // 2. Delete ladder positions
+      // 2. Delete gauntlet positions
       await sequelize.query(
-        `DELETE FROM ladder_positions WHERE ladder_id IN (${ladderIds.map(() => '?').join(',')})`,
+        `DELETE FROM gauntlet_positions WHERE ladder_id IN (${ladderIds.map(() => '?').join(',')})`,
         {
           replacements: ladderIds,
           type: QueryTypes.DELETE

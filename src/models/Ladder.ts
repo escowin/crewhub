@@ -55,7 +55,7 @@ Ladder.init(
   {
     sequelize,
     modelName: 'Ladder',
-    tableName: 'ladders',
+    tableName: 'gauntlet_ladders',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
