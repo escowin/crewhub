@@ -443,20 +443,21 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       // 5. Create initial ladder progression records for all lineups
       console.log('🔍 Creating ladder progressions...');
       
-      // 5a. Create progressions for challengers
+      // 5a. Create progressions for challengers (map client payload by lineup id)
+      const clientProgressions = Array.isArray((req.body as any).progressions) ? (req.body as any).progressions : [];
       for (let i = 0; i < challengerLineupIds.length; i++) {
         const challengerLineupId = challengerLineupIds[i];
         if (!challengerLineupId) continue; // Safety check
-        
         const challengerPosition = i + 1;
+        const clientProg = clientProgressions.find((p: any) => p.gauntlet_lineup_id === challengerLineupId);
         await LadderProgression.create({
-          progression_id: (req.body as any)?.progressions?.[i]?.progression_id || randomUUID(), // Optional client UUID
+          progression_id: clientProg?.progression_id || randomUUID(),
           ladder_id: ladderId,
           gauntlet_lineup_id: challengerLineupId,
           from_position: 0,
           to_position: challengerPosition,
           change: challengerPosition,
-          reason: 'new_lineup',
+          reason: clientProg?.reason || 'new_lineup',
           notes: `Initial ladder entry - challenger starting at position ${challengerPosition}`,
           date: new Date(),
           created_at: new Date(),
@@ -465,14 +466,15 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       }
 
       // 5b. Create progression for user (bottom position)
+      const userClientProg = clientProgressions.find((p: any) => p.gauntlet_lineup_id === userLineupId);
       await LadderProgression.create({
-        progression_id: randomUUID(),
+        progression_id: userClientProg?.progression_id || randomUUID(),
         ladder_id: ladderId,
         gauntlet_lineup_id: userLineupId,
         from_position: 0,
         to_position: userPosition,
         change: userPosition,
-        reason: 'new_lineup',
+        reason: userClientProg?.reason || 'new_lineup',
         notes: `Initial ladder entry - user starting at bottom position ${userPosition}`,
         date: new Date(),
         created_at: new Date(),
