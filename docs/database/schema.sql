@@ -561,33 +561,6 @@ CREATE INDEX idx_ladder_positions_ladder_id ON ladder_positions(ladder_id);
 CREATE INDEX idx_ladder_positions_gauntlet_lineup_id ON ladder_positions(gauntlet_lineup_id);
 CREATE INDEX idx_ladder_positions_position ON ladder_positions(position);
 
--- Ladder Progressions Table
-CREATE TABLE ladder_progressions (
-    progression_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ladder_id UUID REFERENCES ladders(ladder_id) ON DELETE CASCADE,
-    gauntlet_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
-    
-    -- Progression Details
-    from_position INTEGER NOT NULL,
-    to_position INTEGER NOT NULL,
-    change INTEGER NOT NULL,
-    reason TEXT NOT NULL CHECK (reason IN ('match_win', 'match_loss', 'match_draw', 'manual_adjustment', 'new_lineup')),
-    
-    -- Reference Information
-    match_id UUID REFERENCES gauntlet_matches(match_id) ON DELETE CASCADE,
-    notes TEXT,
-    
-    -- Metadata
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_ladder_progressions_ladder_id ON ladder_progressions(ladder_id);
-CREATE INDEX idx_ladder_progressions_gauntlet_lineup_id ON ladder_progressions(gauntlet_lineup_id);
-CREATE INDEX idx_ladder_progressions_match_id ON ladder_progressions(match_id);
-
 -- ============================================================================
 -- UTILITY TABLES
 -- ============================================================================
@@ -728,7 +701,6 @@ COMMENT ON TABLE gauntlet_matches IS 'Individual gauntlet matches';
 COMMENT ON TABLE gauntlet_lineups IS 'Gauntlet lineup configurations';
 COMMENT ON TABLE gauntlet_seat_assignments IS 'Seat assignments for gauntlet lineups';
 COMMENT ON TABLE ladders IS 'Ranking ladder system';
-COMMENT ON TABLE ladder_positions IS 'Lineup positions on ladders';
-COMMENT ON TABLE ladder_progressions IS 'Position change history';
+COMMENT ON TABLE ladder_positions IS 'Lineup positions on ladders (tracks position history via previous_position and position fields)';
 COMMENT ON TABLE etl_jobs IS 'ETL job tracking and monitoring';
 COMMENT ON TABLE boat_reservations IS 'Boat usage scheduling across teams';

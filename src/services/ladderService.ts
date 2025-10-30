@@ -1,10 +1,10 @@
-import { GauntletMatch, LadderPosition, LadderProgression, Ladder } from '../models';
+import { GauntletMatch, LadderPosition, Ladder } from '../models';
 import { randomUUID } from 'crypto';
 import sequelize from '../config/database';
 
 export class LadderService {
   /**
-   * Process a match result and update ladder positions/progressions atomically
+   * Process a match result and update ladder positions atomically
    * This is the core atomic operation that ensures data consistency
    * Updates both user and challenger lineups' ladder positions
    */
@@ -22,11 +22,9 @@ export class LadderService {
     ladderUpdate: {
       userLineup: {
         updatedPosition: LadderPosition;
-        progression?: LadderProgression;
       };
       challengerLineup: {
         updatedPosition: LadderPosition;
-        progression?: LadderProgression;
       };
     };
   }> {
@@ -122,7 +120,7 @@ export class LadderService {
   }
 
   /**
-   * Update a lineup's ladder position and create progression if needed
+   * Update a lineup's ladder position
    */
   private static async updateLineupLadderPosition(
     ladderId: string,
@@ -138,7 +136,6 @@ export class LadderService {
     transaction: any
   ): Promise<{
     updatedPosition: LadderPosition;
-    progression?: LadderProgression;
   }> {
     // Get or create ladder position for the lineup
     let currentPosition = await LadderPosition.findOne({
@@ -185,32 +182,9 @@ export class LadderService {
       transaction
     );
 
-    // Create ladder progression record if position changed
-    let progression: LadderProgression | undefined = undefined;
-    if (updatedPosition.position !== currentPosition.position) {
-      progression = await this.createLadderProgression(
-        ladderId,
-        lineupId,
-        currentPosition.position,
-        updatedPosition.position,
-        matchResult,
-        matchId,
-        transaction
-      );
-    }
-
-    const result: {
-      updatedPosition: LadderPosition;
-      progression?: LadderProgression;
-    } = {
+    return {
       updatedPosition
     };
-    
-    if (progression) {
-      result.progression = progression;
-    }
-    
-    return result;
   }
 
   private static determineMatchResult(
@@ -325,25 +299,4 @@ export class LadderService {
     return currentPosition.position;
   }
 
-  private static async createLadderProgression(
-    ladderId: string,
-    lineupId: string,
-    fromPosition: number,
-    toPosition: number,
-    reason: 'match_win' | 'match_loss' | 'match_draw',
-    matchId: string,
-    transaction: any
-  ): Promise<LadderProgression> {
-    return await LadderProgression.create({
-      progression_id: randomUUID(),
-      ladder_id: ladderId,
-      gauntlet_lineup_id: lineupId,
-      from_position: fromPosition,
-      to_position: toPosition,
-      change: toPosition - fromPosition,
-      reason: reason === 'match_win' ? 'match_win' : reason === 'match_loss' ? 'match_loss' : 'match_draw',
-      match_id: matchId,
-      date: new Date()
-    }, { transaction });
-  }
 }

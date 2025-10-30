@@ -281,7 +281,7 @@ router.delete('/:ladderId', authMiddleware.verifyToken, async (req: Request, res
       });
     }
 
-    // Delete the ladder (cascade will handle ladder positions and progressions)
+    // Delete the ladder (cascade will handle ladder positions)
     await ladder.destroy();
 
     return res.json({

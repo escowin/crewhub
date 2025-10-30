@@ -7,7 +7,6 @@ import {
   GauntletSeatAssignment,
   Ladder,
   LadderPosition,
-  LadderProgression,
   Athlete
 } from '../models';
 import { authMiddleware } from '../auth/middleware';
@@ -440,49 +439,6 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
 
       console.log(`✅ Created ladder positions: challengers at positions 1-${challengerLineupIds.length}, user at position ${userPosition}`);
 
-      // 5. Create initial ladder progression records for all lineups
-      console.log('🔍 Creating ladder progressions...');
-      
-      // 5a. Create progressions for challengers (map client payload by lineup id)
-      const clientProgressions = Array.isArray((req.body as any).progressions) ? (req.body as any).progressions : [];
-      for (let i = 0; i < challengerLineupIds.length; i++) {
-        const challengerLineupId = challengerLineupIds[i];
-        if (!challengerLineupId) continue; // Safety check
-        const challengerPosition = i + 1;
-        const clientProg = clientProgressions.find((p: any) => p.gauntlet_lineup_id === challengerLineupId);
-        await LadderProgression.create({
-          progression_id: clientProg?.progression_id || randomUUID(),
-          ladder_id: ladderId,
-          gauntlet_lineup_id: challengerLineupId,
-          from_position: 0,
-          to_position: challengerPosition,
-          change: challengerPosition,
-          reason: clientProg?.reason || 'new_lineup',
-          notes: `Initial ladder entry - challenger starting at position ${challengerPosition}`,
-          date: new Date(),
-          created_at: new Date(),
-          updated_at: new Date()
-        }, { transaction });
-      }
-
-      // 5b. Create progression for user (bottom position)
-      const userClientProg = clientProgressions.find((p: any) => p.gauntlet_lineup_id === userLineupId);
-      await LadderProgression.create({
-        progression_id: userClientProg?.progression_id || randomUUID(),
-        ladder_id: ladderId,
-        gauntlet_lineup_id: userLineupId,
-        from_position: 0,
-        to_position: userPosition,
-        change: userPosition,
-        reason: userClientProg?.reason || 'new_lineup',
-        notes: `Initial ladder entry - user starting at bottom position ${userPosition}`,
-        date: new Date(),
-        created_at: new Date(),
-        updated_at: new Date()
-      }, { transaction });
-
-      console.log(`✅ Created ladder progressions for all ${challengerLineupIds.length + 1} lineups`);
-
       // Commit the transaction
       await transaction.commit();
       transactionCommitted = true;
@@ -510,18 +466,6 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
                   }
                 ],
                 order: [['position', 'ASC']]
-              },
-              {
-                model: LadderProgression,
-                as: 'progressions',
-                include: [
-                  {
-                    model: GauntletLineup,
-                    as: 'lineup',
-                    attributes: ['gauntlet_lineup_id', 'boat_id', 'is_user_lineup']
-                  }
-                ],
-                order: [['date', 'DESC']]
               }
             ]
           },
@@ -700,16 +644,13 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
     }
 
     // Get counts before deletion for response
-    const [matchesCount, lineupsCount, seatAssignmentsCount, ladderPositionsCount, ladderProgressionsCount] = await Promise.all([
+    const [matchesCount, lineupsCount, seatAssignmentsCount, ladderPositionsCount] = await Promise.all([
       GauntletMatch.count({ where: { gauntlet_id: id } }),
       GauntletLineup.count({ where: { gauntlet_id: id } }),
       GauntletSeatAssignment.count({ 
         include: [{ model: GauntletLineup, as: 'lineup', where: { gauntlet_id: id } }]
       }),
       LadderPosition.count({ 
-        include: [{ model: Ladder, as: 'ladder', where: { gauntlet_id: id } }]
-      }),
-      LadderProgression.count({ 
         include: [{ model: Ladder, as: 'ladder', where: { gauntlet_id: id } }]
       })
     ]);
@@ -729,16 +670,7 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
     const ladderIds = ladderResults.map(r => r.ladder_id);
     
     if (ladderIds.length > 0) {
-      // 2. Delete ladder progressions
-      await sequelize.query(
-        `DELETE FROM ladder_progressions WHERE ladder_id IN (${ladderIds.map(() => '?').join(',')})`,
-        {
-          replacements: ladderIds,
-          type: QueryTypes.DELETE
-        }
-      );
-
-      // 3. Delete ladder positions
+      // 2. Delete ladder positions
       await sequelize.query(
         `DELETE FROM ladder_positions WHERE ladder_id IN (${ladderIds.map(() => '?').join(',')})`,
         {
@@ -796,8 +728,7 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
           matches: matchesCount,
           lineups: lineupsCount,
           seatAssignments: seatAssignmentsCount,
-          ladderPositions: ladderPositionsCount,
-          ladderProgressions: ladderProgressionsCount
+          ladderPositions: ladderPositionsCount
         }
       },
       message: 'Gauntlet deleted successfully with cascade delete',

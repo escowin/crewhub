@@ -23,7 +23,6 @@ import GauntletLineup from './GauntletLineup';
 import GauntletSeatAssignment from './GauntletSeatAssignment';
 import Ladder from './Ladder';
 import LadderPosition from './LadderPosition';
-import LadderProgression from './LadderProgression';
 
 // Define associations
 export function setupAssociations() {
@@ -384,41 +383,6 @@ export function setupAssociations() {
     as: 'lineup'
   });
 
-  // Ladder -> LadderProgression (One-to-Many)
-  Ladder.hasMany(LadderProgression, {
-    foreignKey: 'ladder_id',
-    as: 'progressions',
-    onDelete: 'CASCADE'
-  });
-
-  LadderProgression.belongsTo(Ladder, {
-    foreignKey: 'ladder_id',
-    as: 'ladder'
-  });
-
-  // GauntletLineup -> LadderProgression (One-to-Many)
-  GauntletLineup.hasMany(LadderProgression, {
-    foreignKey: 'gauntlet_lineup_id',
-    as: 'ladder_progressions',
-    onDelete: 'CASCADE'
-  });
-
-  LadderProgression.belongsTo(GauntletLineup, {
-    foreignKey: 'gauntlet_lineup_id',
-    as: 'lineup'
-  });
-
-  // GauntletMatch -> LadderProgression (One-to-Many) - optional relationship
-  GauntletMatch.hasMany(LadderProgression, {
-    foreignKey: 'match_id',
-    as: 'ladder_progressions',
-    onDelete: 'CASCADE'
-  });
-
-  LadderProgression.belongsTo(GauntletMatch, {
-    foreignKey: 'match_id',
-    as: 'match'
-  });
 }
 
 // Initialize associations
@@ -448,8 +412,7 @@ export {
   GauntletLineup,
   GauntletSeatAssignment,
   Ladder,
-  LadderPosition,
-  LadderProgression
+  LadderPosition
 };
 
 export default sequelize;

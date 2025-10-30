@@ -6,7 +6,7 @@ This document outlines the complete relationship structure of the **CrewHub data
 ## Core Entity Types
 
 ### Primary Key Strategies
-- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `ladders`, `ladder_positions`, `ladder_progressions`
+- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `ladders`, `ladder_positions`
 - **Auto-increment Integer Primary Keys**: `teams`, `practice_sessions`, `lineups`, `seat_assignments`, `attendance`, `usra_categories`, `mailing_lists`, `regattas`, `regatta_registrations`, `races`, `erg_tests`, `etl_jobs`, `team_memberships`
 
 ## Complete Database Relationship Diagram
@@ -290,19 +290,6 @@ erDiagram
         timestamp last_updated
     }
 
-    LADDER_PROGRESSIONS {
-        uuid progression_id PK
-        uuid ladder_id FK
-        uuid athlete_id FK
-        integer from_position
-        integer to_position
-        integer change
-        enum reason
-        uuid match_id FK
-        text notes
-        date date
-    }
-
     %% Core Boathouse Relationships
     ATHLETES ||--o{ TEAM_MEMBERSHIPS : "belongs to"
     TEAMS ||--o{ TEAM_MEMBERSHIPS : "has"
@@ -335,10 +322,7 @@ erDiagram
     ATHLETES ||--o{ GAUNTLET_SEAT_ASSIGNMENTS : "assigned to"
     GAUNTLETS ||--|| LADDERS : "has one ladder"
     LADDERS ||--o{ LADDER_POSITIONS : "ranks"
-    ATHLETES ||--o{ LADDER_POSITIONS : "participates in"
-    LADDERS ||--o{ LADDER_PROGRESSIONS : "tracks changes"
-    ATHLETES ||--o{ LADDER_PROGRESSIONS : "moves in"
-    GAUNTLET_MATCHES ||--o{ LADDER_PROGRESSIONS : "causes changes"
+    GAUNTLET_LINEUPS ||--o{ LADDER_POSITIONS : "participates in"
 ```
 
 ## Core Boathouse Management System
@@ -444,10 +428,8 @@ DELETE gauntlet → CASCADE deletes:
 ├── gauntlet_lineups
 │   └── gauntlet_seat_assignments
 ├── gauntlet_matches
-│   └── ladder_progressions (via match_id)
 └── ladders
-    ├── ladder_positions
-    └── ladder_progressions (via ladder_id)
+    └── ladder_positions
 ```
 
 ### 6. Gauntlet System
@@ -459,7 +441,6 @@ gauntlet_matches (UUID) ←→ gauntlet_lineups (UUID) [2 per match, SET NULL]
 gauntlet_lineups (UUID) ←→ gauntlet_seat_assignments (UUID) [CASCADE]
 boats (UUID) ←→ gauntlet_lineups (UUID)
 athletes (UUID) ←→ gauntlet_seat_assignments (UUID) [CASCADE]
-gauntlet_matches (UUID) ←→ ladder_progressions (UUID) [CASCADE]
 ```
 
 **Key Relationships:**
@@ -470,25 +451,18 @@ gauntlet_matches (UUID) ←→ ladder_progressions (UUID) [CASCADE]
 - **One-to-Many**: Boats → GauntletLineups
 - **Many-to-One**: GauntletLineups → Teams (optional team context)
 - **One-to-Many**: Athletes → GauntletSeatAssignments
-- **One-to-Many**: GauntletMatches → LadderProgressions (optional)
 
 ### 7. Ladder System
 ```
 gauntlets (UUID) ←→ ladders (UUID) [1:1, CASCADE]
 ladders (UUID) ←→ ladder_positions (UUID) [CASCADE]
-ladders (UUID) ←→ ladder_progressions (UUID) [CASCADE]
-athletes (UUID) ←→ ladder_positions (UUID) [CASCADE]
-athletes (UUID) ←→ ladder_progressions (UUID) [CASCADE]
-gauntlet_matches (UUID) ←→ ladder_progressions (UUID) [CASCADE]
+gauntlet_lineups (UUID) ←→ ladder_positions (UUID) [CASCADE]
 ```
 
 **Key Relationships:**
 - **One-to-One**: Gauntlets → Ladders (auto-created, CASCADE)
 - **One-to-Many**: Ladders → LadderPositions
-- **One-to-Many**: Ladders → LadderProgressions
-- **One-to-Many**: Athletes → LadderPositions
-- **One-to-Many**: Athletes → LadderProgressions
-- **Many-to-One**: LadderProgressions → GauntletMatches (optional)
+- **One-to-Many**: GauntletLineups → LadderPositions
 
 ## Cross-System Integration Points
 
@@ -528,8 +502,7 @@ Athlete → RegattaRegistration → Regatta
 ```
 Athlete → Gauntlet → Ladder (auto-created)
 Athlete → Gauntlet → GauntletMatch → GauntletLineup (2 per match) → GauntletSeatAssignment
-Athlete → GauntletMatch → LadderProgression (optional)
-Athlete → Ladder → LadderPosition → LadderProgression
+GauntletLineup → Ladder → LadderPosition
 ```
 
 ## Key Design Decisions
@@ -541,7 +514,7 @@ Athlete → Ladder → LadderPosition → LadderProgression
 ### 15. Two-Side Match Structure
 - **GauntletMatch → GauntletLineup**: Each match has exactly 2 lineups (user & challenger sides)
 - **GauntletLineup → GauntletSeatAssignment**: Each lineup has detailed seat assignments
-- **LadderProgression → GauntletMatch**: Tracks which matches caused ladder movements
+- **LadderPosition**: Tracks position history via `previous_position` and `position` fields
 
 ### 16. Cross-Reference Strategy
 - **Athlete-Centric**: All competitive activities tie back to athletes
@@ -557,7 +530,7 @@ SELECT a.*, tm.role, g.name as gauntlet_name, lp.position
 FROM athletes a
 LEFT JOIN team_memberships tm ON a.athlete_id = tm.athlete_id
 LEFT JOIN gauntlets g ON a.athlete_id = g.created_by
-LEFT JOIN ladder_positions lp ON a.athlete_id = lp.athlete_id;
+LEFT JOIN ladder_positions lp ON a.athlete_id = (SELECT gl.gauntlet_lineup_id FROM gauntlet_lineups gl WHERE gl.gauntlet_lineup_id = lp.gauntlet_lineup_id);
 
 -- Gauntlet match with both lineups and seat assignments
 SELECT 
