@@ -153,7 +153,7 @@ export class LadderService {
       const nextPosition = (maxPosition || 0) + 1;
       
       currentPosition = await LadderPosition.create({
-        position_id: randomUUID(),
+        position_id: (currentPosition as any)?.position_id || randomUUID(),
         ladder_id: ladderId,
         gauntlet_lineup_id: lineupId,
         position: nextPosition,

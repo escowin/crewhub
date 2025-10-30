@@ -100,7 +100,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
 
     // Create ladder position
     const ladderPosition = await LadderPosition.create({
-      position_id: randomUUID(), // Generate UUID for primary key
+      position_id: position_id || randomUUID(), // Accept client UUID or generate
       ladder_id,
       gauntlet_lineup_id,
       position,
