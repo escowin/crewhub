@@ -22,22 +22,23 @@ interface LadderProgressionCreationAttributes extends Optional<LadderProgression
 
 // Define the model class
 class LadderProgression extends Model<LadderProgressionAttributes, LadderProgressionCreationAttributes> implements LadderProgressionAttributes {
-  public progression_id!: string;
-  public ladder_id!: string;
-  public gauntlet_lineup_id!: string;
-  public from_position!: number;
-  public to_position!: number;
-  public change!: number;
-  public reason!: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_lineup';
-  public match_id?: string;
-  public notes?: string;
-  public date!: Date;
-  public created_at!: Date;
-  public updated_at!: Date;
+  // Use declare to avoid emitting class fields that shadow Sequelize accessors
+  declare progression_id: string;
+  declare ladder_id: string;
+  declare gauntlet_lineup_id: string;
+  declare from_position: number;
+  declare to_position: number;
+  declare change: number;
+  declare reason: 'match_win' | 'match_loss' | 'match_draw' | 'manual_adjustment' | 'new_lineup';
+  declare match_id?: string;
+  declare notes?: string;
+  declare date: Date;
+  declare created_at: Date;
+  declare updated_at: Date;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare createdAt: Date;
+  declare updatedAt: Date;
 }
 
 // Initialize the model

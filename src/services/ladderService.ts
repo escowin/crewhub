@@ -17,7 +17,7 @@ export class LadderService {
     user_losses: number;
     sets: number;
     match_date: Date;
-  }): Promise<{
+  }, options?: { transaction?: any }): Promise<{
     match: GauntletMatch;
     ladderUpdate: {
       userLineup: {
@@ -30,7 +30,9 @@ export class LadderService {
       };
     };
   }> {
-    const transaction = await sequelize.transaction();
+    const externalTx = options?.transaction;
+    const transaction = externalTx || await sequelize.transaction();
+    const shouldCommit = !externalTx;
     
     try {
       // 1. Get or create the ladder for this gauntlet
@@ -92,8 +94,10 @@ export class LadderService {
         transaction
       );
 
-      // 6. Commit all changes atomically
-      await transaction.commit();
+      // 6. Commit all changes atomically (only if we own the transaction)
+      if (shouldCommit) {
+        await transaction.commit();
+      }
       
       const match = await GauntletMatch.findByPk(matchData.match_id);
       if (!match) {
@@ -109,8 +113,10 @@ export class LadderService {
       };
 
     } catch (error) {
-      // Rollback all changes if any step fails
-      await transaction.rollback();
+      // Rollback all changes if any step fails (only if we own the transaction)
+      if (shouldCommit) {
+        await transaction.rollback();
+      }
       throw error;
     }
   }
@@ -228,13 +234,19 @@ export class LadderService {
     },
     transaction: any
   ): Promise<LadderPosition> {
-    // Calculate new statistics
-    const draws = matchStats.sets - matchStats.wins - matchStats.losses;
-    const newWins = currentPosition.wins + matchStats.wins;
-    const newLosses = currentPosition.losses + matchStats.losses;
-    const newDraws = currentPosition.draws + draws;
-    const newTotalMatches = newWins + newLosses + newDraws;
+    // Statistics are recorded per match (not per set)
+    const winIncrement = matchResult === 'match_win' ? 1 : 0;
+    const lossIncrement = matchResult === 'match_loss' ? 1 : 0;
+    const drawIncrement = matchResult === 'match_draw' ? 1 : 0;
+
+    const newWins = currentPosition.wins + winIncrement;
+    const newLosses = currentPosition.losses + lossIncrement;
+    const newDraws = currentPosition.draws + drawIncrement;
+    const newTotalMatches = currentPosition.total_matches + 1;
     const newWinRate = newTotalMatches > 0 ? (newWins / newTotalMatches) * 100 : 0;
+
+    // Points are derived from set wins this match
+    const newPoints = currentPosition.points + matchStats.wins;
 
     // Update streak information
     const { streakType, streakCount } = this.calculateStreak(
@@ -260,6 +272,7 @@ export class LadderService {
       draws: newDraws,
       total_matches: newTotalMatches,
       win_rate: newWinRate,
+      points: newPoints,
       streak_type: streakType as 'win' | 'loss' | 'draw' | 'none',
       streak_count: streakCount,
       last_match_date: matchStats.match_date,

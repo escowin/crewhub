@@ -28,25 +28,25 @@ interface LadderPositionCreationAttributes extends Optional<LadderPositionAttrib
 
 // Define the model class
 class LadderPosition extends Model<LadderPositionAttributes, LadderPositionCreationAttributes> {
-  // Public class fields for TypeScript compatibility
-  public position_id!: string;
-  public ladder_id!: string;
-  public gauntlet_lineup_id!: string;
-  public position!: number;
-  public previous_position?: number;
-  public wins!: number;
-  public losses!: number;
-  public draws!: number;
-  public win_rate!: number;
-  public total_matches!: number;
-  public points!: number;
-  public streak_type!: 'win' | 'loss' | 'draw' | 'none';
-  public streak_count!: number;
-  public last_match_date?: Date;
-  public joined_date!: Date;
-  public last_updated!: Date;
-  public created_at!: Date;
-  public updated_at!: Date;
+  // Use declare to avoid emitting class fields that shadow Sequelize accessors
+  declare position_id: string;
+  declare ladder_id: string;
+  declare gauntlet_lineup_id: string;
+  declare position: number;
+  declare previous_position?: number;
+  declare wins: number;
+  declare losses: number;
+  declare draws: number;
+  declare win_rate: number;
+  declare total_matches: number;
+  declare points: number;
+  declare streak_type: 'win' | 'loss' | 'draw' | 'none';
+  declare streak_count: number;
+  declare last_match_date?: Date;
+  declare joined_date: Date;
+  declare last_updated: Date;
+  declare created_at: Date;
+  declare updated_at: Date;
 }
 
 // Initialize the model

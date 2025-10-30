@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { GauntletMatch, Gauntlet } from '../models';
+import sequelize from '../config/database';
 import { authMiddleware } from '../auth/middleware';
 import { LadderService } from '../services/ladderService';
 
@@ -27,7 +28,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       user_losses = 0,
       match_date,
       notes,
-      process_ladder = false, // Flag to trigger ladder updates
+      process_ladder = true, // Flag to trigger ladder updates (default true)
       created_at,
       updated_at
     } = req.body;
@@ -134,33 +135,34 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       });
     }
 
-    // Create match
+    // Create match and process ladder updates in a single transaction for atomicity
     console.log('🏁 GauntletMatches API: Creating match...');
-    const match = await GauntletMatch.create({
-      match_id: match_id || randomUUID(),
-      gauntlet_id,
-      user_lineup_id,
-      challenger_lineup_id,
-      workout,
-      sets,
-      user_wins,
-      user_losses,
-      match_date,
-      notes,
-      created_at,
-      updated_at
-    });
-    console.log('✅ GauntletMatches API: Match created successfully:', match.match_id);
+    const tx = await sequelize.transaction();
+    let match: GauntletMatch;
+    let ladderUpdate = null as any;
 
-    let ladderUpdate = null;
+    try {
+      match = await GauntletMatch.create({
+        match_id: match_id || randomUUID(),
+        gauntlet_id,
+        user_lineup_id,
+        challenger_lineup_id,
+        workout,
+        sets,
+        user_wins,
+        user_losses,
+        match_date,
+        notes,
+        created_at,
+        updated_at
+      }, { transaction: tx });
 
-    // Process ladder updates if requested
-    if (process_ladder) {
-      console.log('📈 GauntletMatches API: Processing ladder updates...');
-      try {
-        // Process ladder updates for both lineups
+      console.log('✅ GauntletMatches API: Match created successfully:', match.get('match_id'));
+
+      if (process_ladder) {
+        console.log('📈 GauntletMatches API: Processing ladder updates...');
         const ladderResult = await LadderService.processMatchResult({
-          match_id: match.match_id,
+          match_id: match.get('match_id') as string,
           gauntlet_id: gauntlet_id,
           user_lineup_id: user_lineup_id,
           challenger_lineup_id: challenger_lineup_id,
@@ -168,34 +170,22 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
           user_losses: user_losses,
           sets: sets,
           match_date: new Date(match_date)
-        });
+        }, { transaction: tx });
 
         ladderUpdate = ladderResult.ladderUpdate;
         console.log('✅ GauntletMatches API: Ladder update completed:', ladderUpdate);
-      } catch (ladderError) {
-        console.error('Ladder update failed:', ladderError);
-        // Match is still created, but ladder update failed
-        // This allows for manual ladder adjustment later
       }
+
+      await tx.commit();
+    } catch (txError) {
+      await tx.rollback();
+      throw txError;
     }
 
     const responseData = {
       success: true,
       data: {
-        match: {
-          match_id: match.match_id,
-          gauntlet_id: match.gauntlet_id,
-          user_lineup_id: match.user_lineup_id,
-          challenger_lineup_id: match.challenger_lineup_id,
-          workout: match.workout,
-          sets: match.sets,
-          user_wins: match.user_wins,
-          user_losses: match.user_losses,
-          match_date: match.match_date,
-          notes: match.notes,
-          created_at: match.created_at,
-          updated_at: match.updated_at
-        },
+        match: match.toJSON(),
         ladderUpdate
       },
       message: ladderUpdate 

@@ -22,19 +22,19 @@ interface GauntletMatchCreationAttributes extends Optional<GauntletMatchAttribut
 
 // Define the model class
 class GauntletMatch extends Model<GauntletMatchAttributes, GauntletMatchCreationAttributes> {
-  // Public class fields for TypeScript compatibility
-  public match_id!: string;
-  public gauntlet_id!: string;
-  public user_lineup_id!: string;
-  public challenger_lineup_id!: string;
-  public workout!: string;
-  public sets!: number;
-  public user_wins!: number;
-  public user_losses!: number;
-  public match_date!: Date;
-  public notes?: string;
-  public created_at!: Date;
-  public updated_at!: Date;
+  // Use declare to avoid emitting class fields that shadow Sequelize accessors
+  declare match_id: string;
+  declare gauntlet_id: string;
+  declare user_lineup_id: string;
+  declare challenger_lineup_id: string;
+  declare workout: string;
+  declare sets: number;
+  declare user_wins: number;
+  declare user_losses: number;
+  declare match_date: Date;
+  declare notes?: string;
+  declare created_at: Date;
+  declare updated_at: Date;
 }
 
 // Initialize the model
