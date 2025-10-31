@@ -5,7 +5,6 @@ import sequelize from '../config/database';
 interface GauntletLineupAttributes {
   gauntlet_lineup_id: string;
   gauntlet_id: string;
-  match_id?: string; // Optional - null during configuration, populated when match is created
   boat_id: string;
   is_user_lineup: boolean;
   created_at: Date;
@@ -13,13 +12,12 @@ interface GauntletLineupAttributes {
 }
 
 // Define the creation attributes interface
-interface GauntletLineupCreationAttributes extends Optional<GauntletLineupAttributes, 'gauntlet_lineup_id' | 'match_id' | 'is_user_lineup' | 'created_at' | 'updated_at'> {}
+interface GauntletLineupCreationAttributes extends Optional<GauntletLineupAttributes, 'gauntlet_lineup_id' | 'is_user_lineup' | 'created_at' | 'updated_at'> {}
 
 // Define the model class
 class GauntletLineup extends Model<GauntletLineupAttributes, GauntletLineupCreationAttributes> implements GauntletLineupAttributes {
   public gauntlet_lineup_id!: string;
   public gauntlet_id!: string;
-  public match_id?: string;
   public boat_id!: string;
   public is_user_lineup!: boolean;
   public created_at!: Date;
@@ -46,15 +44,6 @@ GauntletLineup.init(
         key: 'gauntlet_id'
       },
       onDelete: 'CASCADE'
-    },
-    match_id: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'gauntlet_matches',
-        key: 'match_id'
-      },
-      onDelete: 'SET NULL'
     },
     boat_id: {
       type: DataTypes.UUID,
@@ -92,10 +81,6 @@ GauntletLineup.init(
       {
         name: 'idx_gauntlet_lineups_gauntlet_id',
         fields: ['gauntlet_id']
-      },
-      {
-        name: 'idx_gauntlet_lineups_match_id',
-        fields: ['match_id']
       },
       {
         name: 'idx_gauntlet_lineups_boat_id',

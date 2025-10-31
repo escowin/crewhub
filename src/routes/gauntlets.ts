@@ -833,7 +833,7 @@ router.post('/:gauntletId/lineups', authMiddleware.verifyToken, async (req: Requ
       });
     }
 
-    const { boat_id, match_id } = req.body;
+    const { boat_id } = req.body;
 
     // Validate required fields
     if (!boat_id) {
@@ -848,8 +848,7 @@ router.post('/:gauntletId/lineups', authMiddleware.verifyToken, async (req: Requ
     const lineup = await GauntletLineup.create({
       gauntlet_lineup_id: randomUUID(), // Generate UUID for primary key
       gauntlet_id: gauntletId!,
-      boat_id: boat_id as string,
-      match_id: match_id || null
+      boat_id: boat_id as string
     });
 
     return res.status(201).json({
@@ -925,12 +924,11 @@ router.put('/:gauntletId/lineups/:lineupId', authMiddleware.verifyToken, async (
       });
     }
 
-    const { boat_id, match_id } = req.body;
+    const { boat_id } = req.body;
 
     // Update the lineup
     await lineup.update({
-      boat_id: boat_id || lineup.boat_id,
-      match_id: match_id !== undefined ? match_id : lineup.match_id
+      boat_id: boat_id || lineup.boat_id
     });
 
     return res.json({
