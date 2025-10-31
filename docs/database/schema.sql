@@ -512,23 +512,10 @@ CREATE INDEX idx_gauntlet_seat_assignments_lineup_id ON gauntlet_seat_assignment
 CREATE INDEX idx_gauntlet_seat_assignments_athlete_id ON gauntlet_seat_assignments(athlete_id);
 CREATE INDEX idx_gauntlet_seat_assignments_seat_number ON gauntlet_seat_assignments(seat_number);
 
--- Gauntlet Ladders Table
-CREATE TABLE gauntlet_ladders (
-    ladder_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    gauntlet_id UUID REFERENCES gauntlets(gauntlet_id) ON DELETE CASCADE,
-    
-    -- Metadata
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes
-CREATE INDEX idx_gauntlet_ladders_gauntlet_id ON gauntlet_ladders(gauntlet_id);
-
 -- Gauntlet Positions Table
 CREATE TABLE gauntlet_positions (
     position_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ladder_id UUID REFERENCES gauntlet_ladders(ladder_id) ON DELETE CASCADE,
+    gauntlet_id UUID NOT NULL REFERENCES gauntlets(gauntlet_id) ON DELETE CASCADE,
     gauntlet_lineup_id UUID NOT NULL REFERENCES gauntlet_lineups(gauntlet_lineup_id) ON DELETE CASCADE,
     
     -- Position Details
@@ -552,12 +539,16 @@ CREATE TABLE gauntlet_positions (
     joined_date DATE DEFAULT CURRENT_DATE,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    -- Ensure one position per lineup per ladder
-    UNIQUE(ladder_id, gauntlet_lineup_id)
+    -- Metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Ensure one position per lineup per gauntlet
+    UNIQUE(gauntlet_id, gauntlet_lineup_id)
 );
 
 -- Indexes
-CREATE INDEX idx_gauntlet_positions_ladder_id ON gauntlet_positions(ladder_id);
+CREATE INDEX idx_gauntlet_positions_gauntlet_id ON gauntlet_positions(gauntlet_id);
 CREATE INDEX idx_gauntlet_positions_gauntlet_lineup_id ON gauntlet_positions(gauntlet_lineup_id);
 CREATE INDEX idx_gauntlet_positions_position ON gauntlet_positions(position);
 
@@ -700,7 +691,6 @@ COMMENT ON TABLE gauntlets IS 'Gauntlet tournament system';
 COMMENT ON TABLE gauntlet_matches IS 'Individual gauntlet matches';
 COMMENT ON TABLE gauntlet_lineups IS 'Gauntlet lineup configurations';
 COMMENT ON TABLE gauntlet_seat_assignments IS 'Seat assignments for gauntlet lineups';
-COMMENT ON TABLE gauntlet_ladders IS 'Ranking ladder system for gauntlets';
-COMMENT ON TABLE gauntlet_positions IS 'Lineup positions on gauntlet ladders (tracks position history via previous_position and position fields)';
+COMMENT ON TABLE gauntlet_positions IS 'Lineup positions in gauntlets (references gauntlet_id directly, tracks position history via previous_position and position fields)';
 COMMENT ON TABLE etl_jobs IS 'ETL job tracking and monitoring';
 COMMENT ON TABLE boat_reservations IS 'Boat usage scheduling across teams';

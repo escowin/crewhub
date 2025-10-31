@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 // Define the attributes interface
 interface GauntletPositionAttributes {
   position_id: string; // Changed to UUID
-  ladder_id: string; // Changed to UUID
+  gauntlet_id: string; // UUID reference to gauntlets (replaces ladder_id)
   gauntlet_lineup_id: string; // UUID reference to gauntlet lineups
   position: number; // 1-based position (1 = top of ladder)
   previous_position?: number;
@@ -30,7 +30,7 @@ interface GauntletPositionCreationAttributes extends Optional<GauntletPositionAt
 class GauntletPosition extends Model<GauntletPositionAttributes, GauntletPositionCreationAttributes> {
   // Use declare to avoid emitting class fields that shadow Sequelize accessors
   declare position_id: string;
-  declare ladder_id: string;
+  declare gauntlet_id: string; // Replaces ladder_id
   declare gauntlet_lineup_id: string;
   declare position: number;
   declare previous_position?: number;
@@ -57,12 +57,12 @@ GauntletPosition.init(
       primaryKey: true,
       allowNull: false
     },
-    ladder_id: {
+    gauntlet_id: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'gauntlet_ladders',
-        key: 'ladder_id'
+        model: 'gauntlets',
+        key: 'gauntlet_id'
       },
       onDelete: 'CASCADE'
     },
@@ -155,20 +155,20 @@ GauntletPosition.init(
     timestamps: false, // Using custom timestamp fields
     indexes: [
       {
-        name: 'idx_ladder_positions_ladder_id',
-        fields: ['ladder_id']
+        name: 'idx_gauntlet_positions_gauntlet_id',
+        fields: ['gauntlet_id']
       },
       {
-        name: 'idx_ladder_positions_gauntlet_lineup_id',
+        name: 'idx_gauntlet_positions_gauntlet_lineup_id',
         fields: ['gauntlet_lineup_id']
       },
       {
-        name: 'idx_ladder_positions_position',
+        name: 'idx_gauntlet_positions_position',
         fields: ['position']
       },
       {
-        name: 'idx_ladder_positions_unique',
-        fields: ['ladder_id', 'gauntlet_lineup_id'],
+        name: 'idx_gauntlet_positions_unique',
+        fields: ['gauntlet_id', 'gauntlet_lineup_id'],
         unique: true
       }
     ]

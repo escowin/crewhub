@@ -5,7 +5,6 @@ import {
   GauntletMatch, 
   GauntletLineup, 
   GauntletSeatAssignment,
-  GauntletLadder,
   GauntletPosition,
   Athlete
 } from '../models';
@@ -79,22 +78,16 @@ router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: GauntletLadder,
-          as: 'ladder',
+          model: GauntletPosition,
+          as: 'gauntlet_positions',
           include: [
             {
-              model: GauntletPosition,
-              as: 'positions',
-              include: [
-                {
-                  model: GauntletLineup,
-                  as: 'lineup',
-                  attributes: ['gauntlet_lineup_id', 'boat_id']
-                }
-              ],
-              order: [['position', 'ASC']]
+              model: GauntletLineup,
+              as: 'lineup',
+              attributes: ['gauntlet_lineup_id', 'boat_id']
             }
-          ]
+          ],
+          order: [['position', 'ASC']]
         }
       ]
     });
@@ -238,7 +231,6 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       status = 'setup',
       // Accept UUIDs from frontend to ensure consistency
       gauntlet_id,
-      ladder_id,
       userBoat,
       challengers
     } = req.body;
@@ -314,17 +306,8 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       const gauntletId = gauntlet.getDataValue('gauntlet_id');
       console.log('✅ Gauntlet created with ID:', gauntletId);
 
-      // 2. Create ladder
-      console.log('🔍 Creating ladder...');
-      const ladder = await GauntletLadder.create({
-        ladder_id: ladder_id || randomUUID(), // Use provided UUID or generate one
-        gauntlet_id: gauntletId
-      }, { transaction });
-
-      const ladderId = ladder.getDataValue('ladder_id');
-      console.log('✅ Ladder created with ID:', ladderId);
-
-      // 3. Create all lineups FIRST (user + challengers) before assigning ladder positions
+      // 2. Create all lineups FIRST (user + challengers) before assigning ladder positions
+      // Note: Ladder positions now reference gauntlet_id directly, so no separate ladder table needed
       console.log('🔍 Creating all lineups...');
       
       // 3a. Create user lineup
@@ -397,7 +380,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       for (const challengerLineupId of challengerLineupIds) {
         await GauntletPosition.create({
           position_id: (req.body as any)?.positions?.[positionNumber - 1]?.position_id || randomUUID(), // Optional client UUID
-          ladder_id: ladderId,
+          gauntlet_id: gauntletId,
           gauntlet_lineup_id: challengerLineupId,
           position: positionNumber, // Top positions
           wins: 0,
@@ -420,7 +403,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
       const userPosition = positionNumber; // Bottom position
       await GauntletPosition.create({
         position_id: (req.body as any)?.positions?.[userPosition - 1]?.position_id || randomUUID(), // Optional client UUID
-        ladder_id: ladderId,
+        gauntlet_id: gauntletId,
         gauntlet_lineup_id: userLineupId,
         position: userPosition, // Bottom position
         wins: 0,
@@ -437,7 +420,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
         updated_at: new Date()
       }, { transaction });
 
-      console.log(`✅ Created ladder positions: challengers at positions 1-${challengerLineupIds.length}, user at position ${userPosition}`);
+      console.log(`✅ Created gauntlet positions: challengers at positions 1-${challengerLineupIds.length}, user at position ${userPosition}`);
 
       // Commit the transaction
       await transaction.commit();
@@ -451,24 +434,18 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
             as: 'creator',
             attributes: ['athlete_id', 'name', 'email']
           },
-          {
-            model: GauntletLadder,
-            as: 'ladder',
-            include: [
-              {
-                model: GauntletPosition,
-                as: 'positions',
-                include: [
-                  {
-                    model: GauntletLineup,
-                    as: 'lineup',
-                    attributes: ['gauntlet_lineup_id', 'boat_id', 'is_user_lineup']
-                  }
-                ],
-                order: [['position', 'ASC']]
-              }
-            ]
-          },
+        {
+          model: GauntletPosition,
+          as: 'gauntlet_positions',
+          include: [
+            {
+              model: GauntletLineup,
+              as: 'lineup',
+              attributes: ['gauntlet_lineup_id', 'boat_id', 'is_user_lineup']
+            }
+          ],
+          order: [['position', 'ASC']]
+        },
           {
             model: GauntletLineup,
             as: 'gauntlet_lineups',
@@ -601,8 +578,8 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: GauntletLadder,
-          as: 'ladder'
+          model: GauntletPosition,
+          as: 'gauntlet_positions'
         }
       ]
     });
@@ -650,40 +627,18 @@ router.delete('/:id', authMiddleware.verifyToken, async (req: Request, res: Resp
       GauntletSeatAssignment.count({ 
         include: [{ model: GauntletLineup, as: 'lineup', where: { gauntlet_id: id } }]
       }),
-      GauntletPosition.count({ 
-        include: [{ model: GauntletLadder, as: 'ladder', where: { gauntlet_id: id } }]
-      })
+      GauntletPosition.count({ where: { gauntlet_id: id } })
     ]);
 
     // Manual cascade deletion in correct order to avoid foreign key constraints
-    // Use raw SQL to find ladder IDs first, then delete related records
-    
-    // 1. Find all ladder IDs for this gauntlet
-    const ladderResults = await sequelize.query(
-      'SELECT ladder_id FROM gauntlet_ladders WHERE gauntlet_id = :gauntletId',
+    // Delete gauntlet positions (CASCADE should handle this, but explicit deletion for safety)
+    await sequelize.query(
+      'DELETE FROM gauntlet_positions WHERE gauntlet_id = :gauntletId',
       {
         replacements: { gauntletId: id },
-        type: QueryTypes.SELECT
+        type: QueryTypes.DELETE
       }
-    ) as Array<{ ladder_id: string }>;
-    
-    const ladderIds = ladderResults.map(r => r.ladder_id);
-    
-    if (ladderIds.length > 0) {
-      // 2. Delete gauntlet positions
-      await sequelize.query(
-        `DELETE FROM gauntlet_positions WHERE ladder_id IN (${ladderIds.map(() => '?').join(',')})`,
-        {
-          replacements: ladderIds,
-          type: QueryTypes.DELETE
-        }
-      );
-
-      // 4. Delete ladders
-      await GauntletLadder.destroy({
-        where: { gauntlet_id: id }
-      });
-    }
+    );
 
     // 5. Find all lineup IDs for this gauntlet
     const lineupResults = await sequelize.query(

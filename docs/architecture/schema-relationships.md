@@ -6,7 +6,7 @@ This document outlines the complete relationship structure of the **CrewHub data
 ## Core Entity Types
 
 ### Primary Key Strategies
-- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `gauntlet_ladders`, `gauntlet_positions`
+- **UUID Primary Keys**: `athletes`, `boats`, `gauntlets`, `gauntlet_matches`, `gauntlet_positions`
 - **Auto-increment Integer Primary Keys**: `teams`, `practice_sessions`, `lineups`, `seat_assignments`, `attendance`, `usra_categories`, `mailing_lists`, `regattas`, `regatta_registrations`, `races`, `erg_tests`, `etl_jobs`, `team_memberships`
 
 ## Complete Database Relationship Diagram
@@ -264,16 +264,9 @@ erDiagram
         timestamp updated_at
     }
 
-    GAUNTLET_LADDERS {
-        uuid ladder_id PK
-        uuid gauntlet_id FK
-        timestamp created_at
-        timestamp updated_at
-    }
-
     GAUNTLET_POSITIONS {
         uuid position_id PK
-        uuid ladder_id FK
+        uuid gauntlet_id FK
         uuid gauntlet_lineup_id FK
         integer position
         integer previous_position
@@ -288,6 +281,8 @@ erDiagram
         date last_match_date
         date joined_date
         timestamp last_updated
+        timestamp created_at
+        timestamp updated_at
     }
 
     %% Core Boathouse Relationships
@@ -320,8 +315,7 @@ erDiagram
     BOATS ||--o{ GAUNTLET_LINEUPS : "used in"
     GAUNTLET_LINEUPS ||--o{ GAUNTLET_SEAT_ASSIGNMENTS : "contains"
     ATHLETES ||--o{ GAUNTLET_SEAT_ASSIGNMENTS : "assigned to"
-    GAUNTLETS ||--|| GAUNTLET_LADDERS : "has one ladder"
-    GAUNTLET_LADDERS ||--o{ GAUNTLET_POSITIONS : "ranks"
+    GAUNTLETS ||--o{ GAUNTLET_POSITIONS : "has positions"
     GAUNTLET_LINEUPS ||--o{ GAUNTLET_POSITIONS : "participates in"
 ```
 
@@ -419,8 +413,8 @@ The Rowcalibur competitive system has been simplified to provide a clean, single
 - **Single Point of Control**: Gauntlet is the primary entity - creation and deletion manages all related data
 - **Minimal Configuration**: Removed complex configuration objects in favor of simple relational structure  
 - **CASCADE Deletes**: When a gauntlet is deleted, all related data is automatically removed
-- **1:1 Relationship**: Each gauntlet has exactly one ladder (auto-created)
-- **No Redundancy**: Eliminated duplicate fields between gauntlets and ladders
+- **Direct Reference**: Gauntlet positions reference gauntlets directly (no intermediate ladder table)
+- **No Redundancy**: Eliminated redundant `gauntlet_ladders` table - positions now reference `gauntlet_id` directly
 
 ### CASCADE Delete Chain
 ```
@@ -428,8 +422,7 @@ DELETE gauntlet → CASCADE deletes:
 ├── gauntlet_lineups
 │   └── gauntlet_seat_assignments
 ├── gauntlet_matches
-└── gauntlet_ladders
-    └── gauntlet_positions
+└── gauntlet_positions
 ```
 
 ### 6. Gauntlet System
@@ -454,14 +447,12 @@ athletes (UUID) ←→ gauntlet_seat_assignments (UUID) [CASCADE]
 
 ### 7. Ladder System
 ```
-gauntlets (UUID) ←→ gauntlet_ladders (UUID) [1:1, CASCADE]
-gauntlet_ladders (UUID) ←→ gauntlet_positions (UUID) [CASCADE]
+gauntlets (UUID) ←→ gauntlet_positions (UUID) [CASCADE, direct reference]
 gauntlet_lineups (UUID) ←→ gauntlet_positions (UUID) [CASCADE]
 ```
 
 **Key Relationships:**
-- **One-to-One**: Gauntlets → GauntletLadders (auto-created, CASCADE)
-- **One-to-Many**: GauntletLadders → GauntletPositions
+- **One-to-Many**: Gauntlets → GauntletPositions (direct reference, no intermediate table)
 - **One-to-Many**: GauntletLineups → GauntletPositions
 
 ## Cross-System Integration Points
@@ -500,9 +491,9 @@ Athlete → RegattaRegistration → Regatta
 
 ### 13. Rowcalibur Competitive Workflow (Simplified)
 ```
-Athlete → Gauntlet → GauntletLadder (auto-created)
+Athlete → Gauntlet → GauntletPosition (direct reference)
 Athlete → Gauntlet → GauntletMatch → GauntletLineup (2 per match) → GauntletSeatAssignment
-GauntletLineup → GauntletLadder → GauntletPosition
+GauntletLineup → GauntletPosition (via gauntlet_id)
 ```
 
 ## Key Design Decisions

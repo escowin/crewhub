@@ -21,7 +21,6 @@ import Gauntlet from './Gauntlet';
 import GauntletMatch from './GauntletMatch';
 import GauntletLineup from './GauntletLineup';
 import GauntletSeatAssignment from './GauntletSeatAssignment';
-import GauntletLadder from './GauntletLadder';
 import GauntletPosition from './GauntletPosition';
 
 // Define associations
@@ -347,28 +346,16 @@ export function setupAssociations() {
     as: 'athlete'
   });
 
-  // Gauntlet -> GauntletLadder (One-to-One) - simplified relationship
-  Gauntlet.hasOne(GauntletLadder, {
+  // Gauntlet -> GauntletPosition (One-to-Many) - positions now reference gauntlet_id directly
+  Gauntlet.hasMany(GauntletPosition, {
     foreignKey: 'gauntlet_id',
-    as: 'ladder',
+    as: 'gauntlet_positions',
     onDelete: 'CASCADE'
   });
 
-  GauntletLadder.belongsTo(Gauntlet, {
+  GauntletPosition.belongsTo(Gauntlet, {
     foreignKey: 'gauntlet_id',
     as: 'gauntlet'
-  });
-
-  // GauntletLadder -> GauntletPosition (One-to-Many)
-  GauntletLadder.hasMany(GauntletPosition, {
-    foreignKey: 'ladder_id',
-    as: 'positions',
-    onDelete: 'CASCADE'
-  });
-
-  GauntletPosition.belongsTo(GauntletLadder, {
-    foreignKey: 'ladder_id',
-    as: 'ladder'
   });
 
   // GauntletLineup -> GauntletPosition (One-to-Many)
@@ -411,7 +398,6 @@ export {
   GauntletMatch,
   GauntletLineup,
   GauntletSeatAssignment,
-  GauntletLadder,
   GauntletPosition
 };
 

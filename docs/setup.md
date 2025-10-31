@@ -39,8 +39,7 @@ crewhub/
 │   │   ├── Lineup.ts
 │   │   ├── Gauntlet.ts
 │   │   ├── GauntletMatch.ts
-│   │   ├── Ladder.ts
-│   │   ├── LadderPosition.ts
+│   │   ├── GauntletPosition.ts
 │   │   └── UsraCategory.ts
 │   ├── routes/               # API routes
 │   │   ├── athletes.ts
@@ -48,15 +47,14 @@ crewhub/
 │   │   ├── boats.ts
 │   │   ├── gauntletMatches.ts
 │   │   ├── gauntlets.ts
-│   │   ├── ladderPositions.ts
-│   │   ├── ladders.ts
+│   │   ├── gauntletPositions.ts
 │   │   ├── lineups.ts
 │   │   ├── practiceSessions.ts
 │   │   └── index.ts
 │   ├── services/             # Business logic
 │   │   ├── athleteService.ts
 │   │   ├── attendanceService.ts
-│   │   ├── ladderService.ts
+│   │   ├── gauntletService.ts
 │   │   ├── lineupService.ts
 │   │   └── index.ts
 │   ├── utils/                # Utilities
@@ -312,8 +310,7 @@ router.use('/attendance', attendanceRoutes);
 router.use('/boats', boatRoutes);
 router.use('/gauntlets', gauntletRoutes);
 router.use('/gauntlet-matches', gauntletMatchRoutes);
-router.use('/ladders', ladderRoutes);
-router.use('/ladder-positions', ladderPositionRoutes);
+router.use('/gauntlet-positions', gauntletPositionRoutes);
 router.use('/lineups', lineupRoutes);
 router.use('/practice-sessions', practiceSessionRoutes);
 

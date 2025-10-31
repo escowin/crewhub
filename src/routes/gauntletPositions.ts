@@ -1,19 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { GauntletPosition, GauntletLadder, GauntletLineup } from '../models';
+import { GauntletPosition, GauntletLineup, Gauntlet } from '../models';
 import { authMiddleware } from '../auth/middleware';
 
 const router = Router();
 
 /**
- * POST /api/ladder-positions
+ * POST /api/gauntlet-positions
  * Create a new ladder position
  */
 router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
     const {
       position_id,
-      ladder_id,
+      gauntlet_id,
       gauntlet_lineup_id,
       position,
       previous_position,
@@ -30,22 +30,22 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     } = req.body;
 
     // Validate required fields
-    if (!ladder_id || !gauntlet_lineup_id || position === undefined) {
+    if (!gauntlet_id || !gauntlet_lineup_id || position === undefined) {
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Missing required fields: ladder_id, gauntlet_lineup_id, position',
+        message: 'Missing required fields: gauntlet_id, gauntlet_lineup_id, position',
         error: 'VALIDATION_ERROR'
       });
     }
 
-    // Check if ladder exists
-    const ladder = await GauntletLadder.findByPk(ladder_id);
-    if (!ladder) {
+    // Check if gauntlet exists
+    const gauntlet = await Gauntlet.findByPk(gauntlet_id);
+    if (!gauntlet) {
       return res.status(404).json({
         success: false,
         data: null,
-        message: 'Ladder not found',
+        message: 'Gauntlet not found',
         error: 'NOT_FOUND'
       });
     }
@@ -82,10 +82,10 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       });
     }
 
-    // Check if gauntlet lineup already has a position in this ladder
+    // Check if gauntlet lineup already has a position in this gauntlet
     const existingPosition = await GauntletPosition.findOne({
       where: {
-        ladder_id,
+        gauntlet_id,
         gauntlet_lineup_id
       }
     });
@@ -94,7 +94,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Gauntlet lineup already has a position in this ladder',
+        message: 'Gauntlet lineup already has a position in this gauntlet',
         error: 'DUPLICATE_ERROR'
       });
     }
@@ -102,7 +102,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     // Create ladder position
     const ladderPosition = await GauntletPosition.create({
       position_id: position_id || randomUUID(), // Accept client UUID or generate
-      ladder_id,
+      gauntlet_id,
       gauntlet_lineup_id,
       position,
       previous_position,
@@ -127,8 +127,8 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
           attributes: ['athlete_id', 'name', 'email']
         },
         {
-          model: GauntletLadder,
-          as: 'ladder'
+          model: Gauntlet,
+          as: 'gauntlet'
         }
       ]
     });
@@ -152,7 +152,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
 });
 
 /**
- * PUT /api/ladder-positions/:id
+ * PUT /api/gauntlet-positions/:id
  * Update a ladder position
  */
 router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Response) => {
@@ -204,8 +204,8 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
           attributes: ['gauntlet_lineup_id', 'is_user_lineup']
         },
         {
-          model: GauntletLadder,
-          as: 'ladder'
+          model: Gauntlet,
+          as: 'gauntlet'
         }
       ]
     });
