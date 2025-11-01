@@ -383,6 +383,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
           gauntlet_id: gauntletId,
           gauntlet_lineup_id: challengerLineupId,
           position: positionNumber, // Top positions
+          previous_position: null, // Initial position has no previous
           wins: 0,
           losses: 0,
           draws: 0,
@@ -406,6 +407,7 @@ router.post('/comprehensive', authMiddleware.verifyToken, async (req: Request, r
         gauntlet_id: gauntletId,
         gauntlet_lineup_id: userLineupId,
         position: userPosition, // Bottom position
+        previous_position: null, // Initial position has no previous
         wins: 0,
         losses: 0,
         draws: 0,

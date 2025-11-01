@@ -193,7 +193,56 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
       }
     }
 
-    await position.update(updates);
+    // Only allow updating mutable fields - exclude immutable fields that are part of unique constraints
+    // Immutable fields: position_id, gauntlet_id, gauntlet_lineup_id, created_at, joined_date
+    // These cannot be changed once set, and changing them would violate the unique constraint
+    const mutableFields = [
+      'position',
+      'previous_position',
+      'wins',
+      'losses',
+      'draws',
+      'win_rate',
+      'total_matches',
+      'points',
+      'streak_type',
+      'streak_count',
+      'last_match_date',
+      'last_updated',
+      'updated_at'
+    ];
+
+    const allowedUpdates: any = {};
+    const filteredFields: string[] = [];
+    
+    for (const field of mutableFields) {
+      if (updates[field] !== undefined) {
+        allowedUpdates[field] = updates[field];
+      }
+    }
+    
+    // Track which fields were filtered out (for debugging)
+    for (const field of Object.keys(updates)) {
+      if (!mutableFields.includes(field) && field !== 'position_id') {
+        filteredFields.push(field);
+      }
+    }
+    
+    if (filteredFields.length > 0) {
+      console.log('🔍 GauntletPositions API: Filtered out immutable fields from update:', {
+        position_id: id,
+        filteredFields,
+        reason: 'These fields are part of unique constraints and cannot be modified'
+      });
+    }
+
+    console.log('✅ GauntletPositions API: Updating position with allowed fields:', {
+      position_id: id,
+      allowedFields: Object.keys(allowedUpdates),
+      updateCount: Object.keys(allowedUpdates).length
+    });
+
+    await position.update(allowedUpdates);
 
     // Fetch updated position with associations
     const updatedPosition = await GauntletPosition.findByPk(id, {
@@ -219,6 +268,29 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
 
   } catch (error: any) {
     console.error('Error updating ladder position:', error);
+    
+    // Handle unique constraint violations
+    if (error.name === 'SequelizeUniqueConstraintError' || error.parent?.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        data: null,
+        message: 'Failed to update ladder position: Unique constraint violation',
+        error: 'UNIQUE_CONSTRAINT_VIOLATION',
+        details: error.parent?.detail || error.message
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Failed to update ladder position: Validation error',
+        error: 'VALIDATION_ERROR',
+        details: error.message
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       data: null,

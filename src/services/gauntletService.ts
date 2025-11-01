@@ -17,7 +17,7 @@ export class GauntletService {
     user_losses: number;
     sets: number;
     match_date: Date;
-  }, options?: { transaction?: any }): Promise<{
+  }, options?: { transaction?: any; match?: GauntletMatch }): Promise<{
     match: GauntletMatch;
     ladderUpdate: {
       userLineup: {
@@ -31,6 +31,18 @@ export class GauntletService {
     const externalTx = options?.transaction;
     const transaction = externalTx || await sequelize.transaction();
     const shouldCommit = !externalTx;
+    
+    console.log('🔍 GauntletService.processMatchResult: Starting', {
+      match_id: matchData.match_id,
+      gauntlet_id: matchData.gauntlet_id,
+      user_lineup_id: matchData.user_lineup_id,
+      challenger_lineup_id: matchData.challenger_lineup_id,
+      user_wins: matchData.user_wins,
+      user_losses: matchData.user_losses,
+      sets: matchData.sets,
+      hasExternalTx: !!externalTx,
+      hasMatch: !!options?.match
+    });
     
     try {
       // 1. No ladder lookup needed - positions now reference gauntlet_id directly
@@ -50,7 +62,13 @@ export class GauntletService {
         matchData.sets
       );
 
+      console.log('📊 GauntletService.processMatchResult: Match results determined', {
+        userMatchResult,
+        challengerMatchResult
+      });
+
       // 4. Update user lineup's ladder position
+      console.log('👤 GauntletService.processMatchResult: Updating user lineup position...');
       const userLineupUpdate = await this.updateLineupLadderPosition(
         matchData.gauntlet_id,
         matchData.user_lineup_id,
@@ -63,8 +81,18 @@ export class GauntletService {
         },
         transaction
       );
+      console.log('✅ GauntletService.processMatchResult: User lineup position updated', {
+        position_id: userLineupUpdate.updatedPosition.position_id,
+        old_position: userLineupUpdate.updatedPosition.previous_position,
+        new_position: userLineupUpdate.updatedPosition.position,
+        wins: userLineupUpdate.updatedPosition.wins,
+        losses: userLineupUpdate.updatedPosition.losses,
+        total_matches: userLineupUpdate.updatedPosition.total_matches,
+        points: userLineupUpdate.updatedPosition.points
+      });
 
       // 5. Update challenger lineup's ladder position
+      console.log('👥 GauntletService.processMatchResult: Updating challenger lineup position...');
       const challengerLineupUpdate = await this.updateLineupLadderPosition(
         matchData.gauntlet_id,
         matchData.challenger_lineup_id,
@@ -77,16 +105,46 @@ export class GauntletService {
         },
         transaction
       );
+      console.log('✅ GauntletService.processMatchResult: Challenger lineup position updated', {
+        position_id: challengerLineupUpdate.updatedPosition.position_id,
+        old_position: challengerLineupUpdate.updatedPosition.previous_position,
+        new_position: challengerLineupUpdate.updatedPosition.position,
+        wins: challengerLineupUpdate.updatedPosition.wins,
+        losses: challengerLineupUpdate.updatedPosition.losses,
+        total_matches: challengerLineupUpdate.updatedPosition.total_matches,
+        points: challengerLineupUpdate.updatedPosition.points
+      });
 
       // 6. Commit all changes atomically (only if we own the transaction)
       if (shouldCommit) {
+        console.log('💾 GauntletService.processMatchResult: Committing transaction (owned by service)...');
         await transaction.commit();
+        console.log('✅ GauntletService.processMatchResult: Transaction committed');
+      } else {
+        console.log('⏸️  GauntletService.processMatchResult: Skipping commit (using external transaction)');
       }
       
-      const match = await GauntletMatch.findByPk(matchData.match_id);
-      if (!match) {
-        throw new Error('Match not found after creation');
+      // Use provided match if available, otherwise query for it
+      let match: GauntletMatch;
+      if (options?.match) {
+        console.log('✅ GauntletService.processMatchResult: Using provided match object');
+        match = options.match;
+      } else {
+        console.log('🔍 GauntletService.processMatchResult: Querying for match...');
+        const foundMatch = await GauntletMatch.findByPk(matchData.match_id, { transaction });
+        if (!foundMatch) {
+          console.error('❌ GauntletService.processMatchResult: Match not found!', {
+            match_id: matchData.match_id,
+            hasTransaction: !!transaction,
+            transactionId: (transaction as any)?.id
+          });
+          throw new Error('Match not found after creation');
+        }
+        match = foundMatch;
+        console.log('✅ GauntletService.processMatchResult: Match found');
       }
+
+      console.log('✅ GauntletService.processMatchResult: Successfully completed');
 
       return {
         match,
@@ -97,9 +155,18 @@ export class GauntletService {
       };
 
     } catch (error) {
+      console.error('❌ GauntletService.processMatchResult: Error occurred', {
+        error: error instanceof Error ? error.message : String(error),
+        match_id: matchData.match_id,
+        shouldCommit,
+        hasTransaction: !!transaction
+      });
+      
       // Rollback all changes if any step fails (only if we own the transaction)
       if (shouldCommit) {
+        console.log('🔄 GauntletService.processMatchResult: Rolling back transaction...');
         await transaction.rollback();
+        console.log('✅ GauntletService.processMatchResult: Transaction rolled back');
       }
       throw error;
     }
@@ -145,6 +212,7 @@ export class GauntletService {
         gauntlet_id: gauntletId,
         gauntlet_lineup_id: lineupId,
         position: nextPosition,
+        previous_position: null, // Initial position has no previous
         wins: 0,
         losses: 0,
         draws: 0,
@@ -193,6 +261,18 @@ export class GauntletService {
     },
     transaction: any
   ): Promise<GauntletPosition> {
+    console.log('📝 GauntletService.updateLadderPosition: Starting update', {
+      position_id: currentPosition.position_id,
+      lineup_id: currentPosition.gauntlet_lineup_id,
+      current_position: currentPosition.position,
+      current_wins: currentPosition.wins,
+      current_losses: currentPosition.losses,
+      current_total_matches: currentPosition.total_matches,
+      current_points: currentPosition.points,
+      matchResult,
+      matchStats
+    });
+
     // Statistics are recorded per match (not per set)
     const winIncrement = matchResult === 'match_win' ? 1 : 0;
     const lossIncrement = matchResult === 'match_loss' ? 1 : 0;
@@ -207,6 +287,19 @@ export class GauntletService {
     // Points are derived from set wins this match
     const newPoints = currentPosition.points + matchStats.wins;
 
+    console.log('📊 GauntletService.updateLadderPosition: Calculated new stats', {
+      winIncrement,
+      lossIncrement,
+      drawIncrement,
+      newWins,
+      newLosses,
+      newDraws,
+      newTotalMatches,
+      newWinRate,
+      newPoints,
+      pointsIncrement: matchStats.wins
+    });
+
     // Update streak information
     const { streakType, streakCount } = this.calculateStreak(
       currentPosition.streak_type,
@@ -214,13 +307,28 @@ export class GauntletService {
       matchResult
     );
 
+    console.log('🔥 GauntletService.updateLadderPosition: Streak calculated', {
+      previousStreakType: currentPosition.streak_type,
+      previousStreakCount: currentPosition.streak_count,
+      newStreakType: streakType,
+      newStreakCount: streakCount
+    });
+
     // Calculate new position based on ladder rules
+    const oldPosition = currentPosition.position;
     const newPosition = await this.calculateNewPosition(
       currentPosition,
       matchResult,
       currentPosition.gauntlet_id,
       transaction
     );
+
+    console.log('🔄 GauntletService.updateLadderPosition: Position change calculated', {
+      oldPosition,
+      newPosition,
+      positionChanged: oldPosition !== newPosition,
+      matchResult
+    });
 
     // Update the position record
     await currentPosition.update({
@@ -238,6 +346,16 @@ export class GauntletService {
       last_updated: new Date()
     }, { transaction });
 
+    console.log('✅ GauntletService.updateLadderPosition: Position updated in database', {
+      position_id: currentPosition.position_id,
+      previous_position: currentPosition.previous_position,
+      position: currentPosition.position,
+      wins: currentPosition.wins,
+      losses: currentPosition.losses,
+      total_matches: currentPosition.total_matches,
+      points: currentPosition.points
+    });
+
     return currentPosition;
   }
 
@@ -245,15 +363,21 @@ export class GauntletService {
     currentStreakType: string,
     currentStreakCount: number,
     matchResult: 'match_win' | 'match_loss' | 'match_draw'
-  ): { streakType: string; streakCount: number } {
-    if (currentStreakType === matchResult) {
+  ): { streakType: 'win' | 'loss' | 'draw' | 'none'; streakCount: number } {
+    // Convert match result to streak type enum value
+    const newStreakType: 'win' | 'loss' | 'draw' = 
+      matchResult === 'match_win' ? 'win' :
+      matchResult === 'match_loss' ? 'loss' : 'draw';
+    
+    // Compare current streak type with new streak type
+    if (currentStreakType === newStreakType) {
       return {
-        streakType: matchResult,
+        streakType: newStreakType,
         streakCount: currentStreakCount + 1
       };
     } else {
       return {
-        streakType: matchResult,
+        streakType: newStreakType,
         streakCount: 1
       };
     }
@@ -271,16 +395,42 @@ export class GauntletService {
       transaction
     });
 
+    console.log('🎯 GauntletService.calculateNewPosition: Calculating position change', {
+      currentPosition: currentPosition.position,
+      matchResult,
+      totalPositions,
+      canMoveUp: matchResult === 'match_win' && currentPosition.position > 1,
+      canMoveDown: matchResult === 'match_loss' && currentPosition.position < totalPositions
+    });
+
     // Simple ladder logic (can be enhanced with more complex rules)
+    let newPosition: number;
     if (matchResult === 'match_win' && (currentPosition.position) > 1) {
       // Move up one position
-      return (currentPosition.position) - 1;
+      newPosition = (currentPosition.position) - 1;
+      console.log('⬆️  GauntletService.calculateNewPosition: Moving UP', {
+        from: currentPosition.position,
+        to: newPosition
+      });
+      return newPosition;
     } else if (matchResult === 'match_loss' && (currentPosition.position) < totalPositions) {
       // Move down one position
-      return (currentPosition.position) + 1;
+      newPosition = (currentPosition.position) + 1;
+      console.log('⬇️  GauntletService.calculateNewPosition: Moving DOWN', {
+        from: currentPosition.position,
+        to: newPosition
+      });
+      return newPosition;
     }
     
     // No change for draws or if already at top/bottom
+    console.log('➡️  GauntletService.calculateNewPosition: No position change', {
+      reason: matchResult === 'match_draw' ? 'draw' : 
+              matchResult === 'match_win' && currentPosition.position === 1 ? 'already at top' :
+              matchResult === 'match_loss' && currentPosition.position === totalPositions ? 'already at bottom' : 'unknown',
+      currentPosition: currentPosition.position,
+      matchResult
+    });
     return currentPosition.position;
   }
 

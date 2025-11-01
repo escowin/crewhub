@@ -161,6 +161,14 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
 
       if (process_ladder) {
         console.log('📈 GauntletMatches API: Processing ladder updates...');
+        console.log('📊 GauntletMatches API: Match data for ladder processing', {
+          match_id: match.get('match_id'),
+          user_wins,
+          user_losses,
+          sets,
+          user_lineup_id,
+          challenger_lineup_id
+        });
         const ladderResult = await GauntletService.processMatchResult({
           match_id: match.get('match_id') as string,
           gauntlet_id: gauntlet_id,
@@ -170,10 +178,25 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
           user_losses: user_losses,
           sets: sets,
           match_date: new Date(match_date)
-        }, { transaction: tx });
+        }, { transaction: tx, match: match });
 
         ladderUpdate = ladderResult.ladderUpdate;
-        console.log('✅ GauntletMatches API: Ladder update completed:', ladderUpdate);
+        console.log('✅ GauntletMatches API: Ladder update completed', {
+          userPosition: {
+            position: ladderUpdate?.userLineup?.updatedPosition?.position,
+            previous_position: ladderUpdate?.userLineup?.updatedPosition?.previous_position,
+            wins: ladderUpdate?.userLineup?.updatedPosition?.wins,
+            losses: ladderUpdate?.userLineup?.updatedPosition?.losses,
+            total_matches: ladderUpdate?.userLineup?.updatedPosition?.total_matches
+          },
+          challengerPosition: {
+            position: ladderUpdate?.challengerLineup?.updatedPosition?.position,
+            previous_position: ladderUpdate?.challengerLineup?.updatedPosition?.previous_position,
+            wins: ladderUpdate?.challengerLineup?.updatedPosition?.wins,
+            losses: ladderUpdate?.challengerLineup?.updatedPosition?.losses,
+            total_matches: ladderUpdate?.challengerLineup?.updatedPosition?.total_matches
+          }
+        });
       }
 
       await tx.commit();

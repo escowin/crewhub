@@ -7,7 +7,7 @@ interface GauntletPositionAttributes {
   gauntlet_id: string; // UUID reference to gauntlets (replaces ladder_id)
   gauntlet_lineup_id: string; // UUID reference to gauntlet lineups
   position: number; // 1-based position (1 = top of ladder)
-  previous_position?: number;
+  previous_position?: number | null; // null for initial positions, number for positions after matches
   wins: number;
   losses: number;
   draws: number;
