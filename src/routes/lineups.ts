@@ -76,44 +76,9 @@ router.get('/athlete/:athlete_id', authMiddleware.verifyToken, async (req: Reque
 });
 
 /**
- * GET /api/lineups/:lineupId
- * Get a specific lineup by ID
- */
-router.get('/:lineupId', authMiddleware.verifyToken, async (req: Request, res: Response) => {
-    try {
-        const { lineupId } = req.params;
-        const athleteId = req.user?.athlete_id;
-
-        if (!athleteId) {
-            return res.status(401).json({ error: 'Athlete ID required' });
-        }
-
-        const lineup = await lineupService.getLineupById(lineupId!);
-
-        if (!lineup) {
-            return res.status(404).json({
-                success: false,
-                error: 'Lineup not found'
-            });
-        }
-
-        return res.json({
-            success: true,
-            data: lineup,
-            message: 'Lineup retrieved successfully'
-        });
-    } catch (error) {
-        console.error('Error fetching lineup:', error);
-        return res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch lineup'
-        });
-    }
-});
-
-/**
  * POST /api/lineups
  * Create a new lineup
+ * NOTE: Must come before /:lineupId route to avoid route conflicts
  */
 router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response) => {
     try {
@@ -155,6 +120,43 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
         });
     }
 });
+
+/**
+ * GET /api/lineups/:lineupId
+ * Get a specific lineup by ID
+ */
+router.get('/:lineupId', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+    try {
+        const { lineupId } = req.params;
+        const athleteId = req.user?.athlete_id;
+
+        if (!athleteId) {
+            return res.status(401).json({ error: 'Athlete ID required' });
+        }
+
+        const lineup = await lineupService.getLineupById(lineupId!);
+
+        if (!lineup) {
+            return res.status(404).json({
+                success: false,
+                error: 'Lineup not found'
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: lineup,
+            message: 'Lineup retrieved successfully'
+        });
+    } catch (error) {
+        console.error('Error fetching lineup:', error);
+        return res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to fetch lineup'
+        });
+    }
+});
+
 
 /**
  * PUT /api/lineups/:lineupId
