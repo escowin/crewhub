@@ -39,6 +39,8 @@ export interface CreateLineupRequest {
   lineup_name?: string;
   lineup_type: 'Practice' | 'Race' | 'Test';
   notes?: string;
+  set_by_athlete?: boolean; // Optional: true if created by athlete (defaults to false for coach-created lineups)
+  set_by_athlete_id?: string; // Optional: UUID of athlete who created this lineup
   seat_assignments: {
     seat_assignment_id?: string; // Optional: client-generated UUID (local-first approach)
     athlete_id: string;
@@ -319,6 +321,14 @@ export class LineupService {
       }
       if (lineupData.updated_at) {
         lineupDataToCreate.updated_at = lineupData.updated_at;
+      }
+
+      // Set athlete-created fields if provided (local-first approach - client provides these)
+      if (lineupData.set_by_athlete !== undefined) {
+        lineupDataToCreate.set_by_athlete = lineupData.set_by_athlete;
+      }
+      if (lineupData.set_by_athlete_id) {
+        lineupDataToCreate.set_by_athlete_id = lineupData.set_by_athlete_id;
       }
 
       const lineup = await Lineup.create(lineupDataToCreate, { transaction });

@@ -13,6 +13,8 @@ interface LineupAttributes {
   average_weight_kg?: number;
   average_age?: number;
   notes?: string;
+  set_by_athlete: boolean;
+  set_by_athlete_id?: string;
   created_at: Date;
   updated_at: Date;
   etl_source: string;
@@ -22,7 +24,7 @@ interface LineupAttributes {
 // Define the creation attributes
 interface LineupCreationAttributes extends Optional<LineupAttributes,
   'lineup_id' | 'lineup_name' | 'total_weight_kg' | 'average_weight_kg' | 'average_age' |
-  'notes' | 'created_at' | 'updated_at' | 'etl_source' | 'etl_last_sync'
+  'notes' | 'set_by_athlete' | 'set_by_athlete_id' | 'created_at' | 'updated_at' | 'etl_source' | 'etl_last_sync'
 > {}
 
 class Lineup extends Model<LineupAttributes, LineupCreationAttributes> implements LineupAttributes {
@@ -36,6 +38,8 @@ class Lineup extends Model<LineupAttributes, LineupCreationAttributes> implement
   public average_weight_kg?: number;
   public average_age?: number;
   public notes?: string;
+  public set_by_athlete!: boolean;
+  public set_by_athlete_id?: string;
   public created_at!: Date;
   public updated_at!: Date;
   public etl_source!: string;
@@ -114,6 +118,20 @@ Lineup.init(
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    set_by_athlete: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    set_by_athlete_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'athletes',
+        key: 'athlete_id',
+      },
+      onDelete: 'CASCADE',
     },
     created_at: {
       type: DataTypes.DATE,
