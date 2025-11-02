@@ -65,8 +65,7 @@ The athletes table includes a 6-digit PIN authentication system:
 - **Session Management**: JWT tokens with 24-hour expiration and 7-day refresh tokens
 
 **PIN Fields:**
-- `pin_hash`: bcrypt hashed PIN (never store plaintext)
-- `pin_salt`: Unique salt for each PIN
+- `pin_hash`: bcrypt hashed PIN (salt embedded in hash string - never store plaintext)
 - `pin_created_at`: When PIN was first created
 - `last_login`: Last successful login timestamp
 - `failed_login_attempts`: Consecutive failed attempts counter

@@ -29,7 +29,6 @@ interface AthleteAttributes {
   ban_notes?: string;
   // PIN Authentication fields
   pin_hash?: string;
-  pin_salt?: string;
   pin_created_at?: Date;
   last_login?: Date;
   failed_login_attempts: number;
@@ -47,7 +46,7 @@ interface AthleteCreationAttributes extends Optional<AthleteAttributes,
   'birth_year' | 'discipline' | 'side' | 
   'bow_in_dark' | 'weight_kg' | 'height_cm' |'experience_years' | 'usra_age_category_id' | 'us_rowing_number' | 'emergency_contact' | 
   'emergency_contact_phone' | 'active' | 'competitive_status' | 'retirement_reason' | 'retirement_date' | 
-  'ban_reason' | 'ban_date' | 'ban_notes' | 'pin_hash' | 'pin_salt' | 'pin_created_at' | 
+  'ban_reason' | 'ban_date' | 'ban_notes' | 'pin_hash' | 'pin_created_at' | 
   'last_login' | 'failed_login_attempts' | 'locked_until' | 'pin_reset_required' | 'created_at' | 'updated_at' | 
   'etl_source' | 'etl_last_sync'
 > {}
@@ -79,7 +78,6 @@ class Athlete extends Model<AthleteAttributes, AthleteCreationAttributes> implem
   public ban_notes?: string;
   // PIN Authentication fields
   public pin_hash?: string;
-  public pin_salt?: string;
   public pin_created_at?: Date;
   public last_login?: Date;
   public failed_login_attempts!: number;
@@ -238,11 +236,6 @@ Athlete.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       comment: 'Hashed PIN for authentication',
-    },
-    pin_salt: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      comment: 'Salt used for PIN hashing',
     },
     pin_created_at: {
       type: DataTypes.DATE,

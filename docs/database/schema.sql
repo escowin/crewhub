@@ -70,8 +70,7 @@ CREATE TABLE athletes (
     ban_notes TEXT,
     
     -- PIN Authentication
-    pin_hash VARCHAR(255),
-    pin_salt VARCHAR(255),
+    pin_hash VARCHAR(255), -- bcrypt hash (salt embedded in hash string)
     pin_created_at TIMESTAMP,
     last_login TIMESTAMP,
     failed_login_attempts INTEGER DEFAULT 0,
@@ -137,7 +136,6 @@ CREATE TABLE teams (
     -- Team Management
     head_coach_id UUID REFERENCES athletes(athlete_id),
     assistant_coaches UUID[],
-    mailing_list_id INTEGER REFERENCES mailing_lists(mailing_list_id),
     
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -147,7 +145,6 @@ CREATE TABLE teams (
 -- Indexes
 CREATE INDEX idx_teams_name ON teams(name);
 CREATE INDEX idx_teams_team_type ON teams(team_type);
-CREATE INDEX idx_teams_mailing_list_id ON teams(mailing_list_id);
 
 -- Team Memberships Table
 CREATE TABLE team_memberships (
@@ -248,6 +245,10 @@ CREATE TABLE lineups (
     -- Additional Information
     notes TEXT,
     
+    -- Lineup Creation Tracking
+    set_by_athlete BOOLEAN NOT NULL DEFAULT false,
+    set_by_athlete_id UUID REFERENCES athletes(athlete_id) ON DELETE CASCADE,
+    
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -259,6 +260,7 @@ CREATE TABLE lineups (
 CREATE INDEX idx_lineups_session_id ON lineups(session_id);
 CREATE INDEX idx_lineups_boat_id ON lineups(boat_id);
 CREATE INDEX idx_lineups_team_id ON lineups(team_id);
+CREATE INDEX idx_lineups_set_by_athlete_id ON lineups(set_by_athlete_id);
 
 -- Seat Assignments Table
 CREATE TABLE seat_assignments (
@@ -479,8 +481,7 @@ CREATE INDEX idx_gauntlet_matches_match_date ON gauntlet_matches(match_date);
 CREATE TABLE gauntlet_lineups (
     gauntlet_lineup_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     gauntlet_id UUID REFERENCES gauntlets(gauntlet_id) ON DELETE CASCADE,
-    match_id UUID REFERENCES gauntlet_matches(match_id) ON DELETE SET NULL,
-    boat_id UUID REFERENCES boats(boat_id),
+    boat_id UUID NOT NULL REFERENCES boats(boat_id) ON DELETE CASCADE,
     is_user_lineup BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -488,7 +489,6 @@ CREATE TABLE gauntlet_lineups (
 
 -- Indexes
 CREATE INDEX idx_gauntlet_lineups_gauntlet_id ON gauntlet_lineups(gauntlet_id);
-CREATE INDEX idx_gauntlet_lineups_match_id ON gauntlet_lineups(match_id);
 CREATE INDEX idx_gauntlet_lineups_boat_id ON gauntlet_lineups(boat_id);
 CREATE INDEX idx_gauntlet_lineups_is_user_lineup ON gauntlet_lineups(is_user_lineup);
 
@@ -560,6 +560,9 @@ CREATE INDEX idx_gauntlet_positions_position ON gauntlet_positions(position);
 CREATE TABLE mailing_lists (
     mailing_list_id SERIAL PRIMARY KEY,
     
+    -- Team Relationship (optional - some teams may not have mailing lists)
+    team_id INTEGER REFERENCES teams(team_id) ON DELETE CASCADE,
+    
     -- Mailing List Details
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
@@ -577,6 +580,7 @@ CREATE TABLE mailing_lists (
 CREATE UNIQUE INDEX idx_mailing_lists_email ON mailing_lists(email);
 CREATE INDEX idx_mailing_lists_name ON mailing_lists(name);
 CREATE INDEX idx_mailing_lists_active ON mailing_lists(active);
+CREATE INDEX idx_mailing_lists_team_id ON mailing_lists(team_id);
 
 -- ETL Jobs Tracking Table
 CREATE TABLE etl_jobs (
