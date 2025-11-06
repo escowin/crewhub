@@ -2,9 +2,9 @@ import { AuthConfig } from './types';
 
 export const authConfig: AuthConfig = {
   jwtSecret: process.env['JWT_SECRET'] || 'your-jwt-secret-key-here',
-  jwtExpiresIn: '24h',
-  refreshTokenExpiresIn: '7d',
-  maxLoginAttempts: 3,
+  jwtExpiresIn: '7d',
+  refreshTokenExpiresIn: '1 month',
+  maxLoginAttempts: 10,
   lockoutDuration: 15 * 60 * 1000, // 15 minutes
   rateLimitWindow: 5 * 60 * 1000, // 5 minutes
   rateLimitMax: 10,
