@@ -9,7 +9,6 @@ interface PracticeSessionAttributes {
   start_time: string;
   end_time?: string;
   session_type: 'Practice' | 'Race' | 'Erg Test' | 'Meeting' | 'Other';
-  location?: string;
   notes?: string;
   created_at: Date;
   updated_at: Date;
@@ -17,7 +16,7 @@ interface PracticeSessionAttributes {
 
 // Define the creation attributes
 interface PracticeSessionCreationAttributes extends Optional<PracticeSessionAttributes,
-  'session_id' | 'end_time' | 'location' | 'notes' | 'created_at' | 'updated_at'
+  'session_id' | 'end_time' | 'notes' | 'created_at' | 'updated_at'
 > {}
 
 class PracticeSession extends Model<PracticeSessionAttributes, PracticeSessionCreationAttributes> implements PracticeSessionAttributes {
@@ -27,7 +26,6 @@ class PracticeSession extends Model<PracticeSessionAttributes, PracticeSessionCr
   public start_time!: string;
   public end_time?: string;
   public session_type!: 'Practice' | 'Race' | 'Erg Test' | 'Meeting' | 'Other';
-  public location?: string;
   public notes?: string;
   public created_at!: Date;
   public updated_at!: Date;
@@ -70,10 +68,6 @@ PracticeSession.init(
       type: DataTypes.ENUM('Practice', 'Race', 'Erg Test', 'Meeting', 'Other'),
       allowNull: false,
       defaultValue: 'Practice',
-    },
-    location: {
-      type: DataTypes.TEXT,
-      allowNull: true,
     },
     notes: {
       type: DataTypes.TEXT,

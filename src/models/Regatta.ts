@@ -4,15 +4,20 @@ import sequelize from '../config/database';
 // Define the attributes interface
 interface RegattaAttributes {
   regatta_id: number;
-  name: string;
+  event: string;
+  host: string;
+  type: 'Head' | 'Sprint' | 'Head/Sprint' | 'Indoor' | 'Coastal' | 'Henley' | 'Open Water' | 'Virtual';
   location?: string;
-  body_of_water?: string;
+  venue?: string;
   start_date?: Date;
-  end_date?: Date;
-  registration_deadline?: Date;
-  registration_open: boolean;
-  registration_notes?: string;
-  regatta_type: 'Local' | 'Regional' | 'National' | 'International' | 'Scrimmage';
+  duration?: number;
+  registration_opens?: Date;
+  registration_closes?: Date;
+  late_registration_opens?: Date;
+  late_registration_closes?: Date;
+  scratch_window_opens?: Date;
+  scratch_window_closes?: Date;
+  url?: string;
   notes?: string;
   created_at: Date;
   updated_at: Date;
@@ -20,21 +25,26 @@ interface RegattaAttributes {
 
 // Define the creation attributes
 interface RegattaCreationAttributes extends Optional<RegattaAttributes,
-  'regatta_id' | 'location' | 'body_of_water' | 'start_date' | 'end_date' | 
-  'registration_deadline' | 'registration_notes' | 'notes' | 'created_at' | 'updated_at'
+  'regatta_id' | 'event' | 'host' | 'type' | 'location' | 'venue' | 'start_date' | 'duration' | 
+  'registration_opens' | 'registration_closes' | 'late_registration_opens' | 'late_registration_closes' | 'scratch_window_opens' | 'scratch_window_closes' | 'url' | 'notes' | 'created_at' | 'updated_at'
 > {}
 
 class Regatta extends Model<RegattaAttributes, RegattaCreationAttributes> implements RegattaAttributes {
   public regatta_id!: number;
-  public name!: string;
+  public event!: string;
+  public host!: string;
+  public type!: 'Head' | 'Sprint' | 'Head/Sprint' | 'Indoor' | 'Coastal' | 'Henley' | 'Open Water' | 'Virtual';
   public location?: string;
-  public body_of_water?: string;
+  public venue?: string;
   public start_date?: Date;
-  public end_date?: Date;
-  public registration_deadline?: Date;
-  public registration_open!: boolean;
-  public registration_notes?: string;
-  public regatta_type!: 'Local' | 'Regional' | 'National' | 'International' | 'Scrimmage';
+  public duration?: number;
+  public registration_opens?: Date;
+  public registration_closes?: Date;
+  public late_registration_opens?: Date;
+  public late_registration_closes?: Date;
+  public scratch_window_opens?: Date;
+  public scratch_window_closes?: Date;
+  public url?: string;
   public notes?: string;
   public created_at!: Date;
   public updated_at!: Date;
@@ -51,15 +61,24 @@ Regatta.init(
       autoIncrement: true,
       primaryKey: true,
     },
-    name: {
+    event: {
       type: DataTypes.TEXT,
       allowNull: false,
+    },
+    host: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    type: {
+      type: DataTypes.ENUM('Head', 'Sprint', 'Head/Sprint', 'Indoor', 'Coastal', 'Henley', 'Open Water', 'Virtual'),
+      allowNull: false,
+      defaultValue: 'Sprint',
     },
     location: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    body_of_water: {
+    venue: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
@@ -67,26 +86,37 @@ Regatta.init(
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    end_date: {
+    duration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    registration_opens: {
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    registration_deadline: {
+    registration_closes: {
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    registration_open: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
+    late_registration_opens: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
     },
-    registration_notes: {
+    late_registration_closes: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    scratch_window_opens: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    scratch_window_closes: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    url: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-    regatta_type: {
-      type: DataTypes.ENUM('Local', 'Regional', 'National', 'International', 'Scrimmage'),
-      allowNull: false,
-      defaultValue: 'Local',
     },
     notes: {
       type: DataTypes.TEXT,
@@ -110,16 +140,16 @@ Regatta.init(
     updatedAt: 'updated_at',
     indexes: [
       {
-        fields: ['name'],
+        fields: ['event'],
+      },
+      {
+        fields: ['type'],
       },
       {
         fields: ['start_date'],
       },
       {
-        fields: ['registration_open'],
-      },
-      {
-        fields: ['regatta_type'],
+        fields: ['registration_opens'],
       },
     ],
   }

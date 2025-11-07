@@ -6,7 +6,7 @@ interface AttendanceAttributes {
   attendance_id: string; // Changed from number to string (UUID)
   session_id: number;
   athlete_id: string;
-  status: 'Yes' | 'No' | 'Maybe' | 'Late' | 'Excused' | null;
+  status: 'Yes' | 'No' | null;
   notes?: string;
   team_id: number;
   created_at: Date;
@@ -24,7 +24,7 @@ class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttribute
   public attendance_id!: string; // Changed from number to string (UUID)
   public session_id!: number;
   public athlete_id!: string;
-  public status!: 'Yes' | 'No' | 'Maybe' | 'Late' | 'Excused' | null;
+  public status!: 'Yes' | 'No' | null;
   public notes?: string;
   public team_id!: number;
   public created_at!: Date;
@@ -63,7 +63,7 @@ Attendance.init(
       onDelete: 'CASCADE',
     },
     status: {
-      type: DataTypes.ENUM('Yes', 'No', 'Maybe', 'Late', 'Excused'),
+      type: DataTypes.ENUM('Yes', 'No'),
       allowNull: true,
     },
     notes: {

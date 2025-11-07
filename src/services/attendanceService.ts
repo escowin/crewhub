@@ -5,7 +5,7 @@ import { Op } from 'sequelize';
 export interface AttendanceSubmissionData {
   session_id: number;
   athlete_id: string;
-  status: 'Yes' | 'No' | 'Maybe' | 'Late' | 'Excused';
+  status: 'Yes' | 'No' ;
   notes?: string;
   team_id: number;
   client_id?: string; // Optional client-generated UUID for offline sync
@@ -309,7 +309,7 @@ export class AttendanceService {
       errors.push('Invalid team_id');
     }
 
-    const validStatuses = ['Yes', 'No', 'Maybe', 'Late', 'Excused'];
+    const validStatuses = ['Yes', 'No'];
     if (!validStatuses.includes(data.status)) {
       errors.push(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
     }
@@ -349,7 +349,6 @@ export class AttendanceService {
             'start_time',
             'end_time',
             'session_type',
-            'location',
             'notes'
           ],
           required: true, // INNER JOIN to ensure session exists
@@ -427,7 +426,6 @@ export class AttendanceService {
             'start_time',
             'end_time',
             'session_type',
-            'location',
             'notes'
           ]
         }],
@@ -568,7 +566,6 @@ export class AttendanceService {
             'start_time',
             'end_time',
             'session_type',
-            'location',
             'notes'
           ]
         }],

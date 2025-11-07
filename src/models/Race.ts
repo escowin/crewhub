@@ -7,23 +7,22 @@ interface RaceAttributes {
   regatta_id: number;
   lineup_id?: string; // Changed from number to string (UUID) to match Lineup model
   event_name: string;
-  race_date?: Date;
-  race_time?: string;
+  event_date?: Date;
+  event_time?: string;
+  heat?: number;
   distance_meters: number;
-  result_time_seconds?: number;
-  placement?: number;
+  race_time?: Date;
+  race_delta?: number;
+  race_placement?: number;
   total_entries?: number;
-  lane_number?: number;
+  lane?: number;
+  boat_number?: number;
   notes?: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-// Define the creation attributes
-interface RaceCreationAttributes extends Optional<RaceAttributes,
-  'race_id' | 'lineup_id' | 'race_date' | 'race_time' | 'result_time_seconds' | 
-  'placement' | 'total_entries' | 'lane_number' | 'notes' | 'created_at' | 'updated_at'
-> {}
+interface RaceCreationAttributes extends Optional<RaceAttributes, 'race_id' | 'regatta_id' | 'lineup_id' | 'event_name' | 'event_date' | 'event_time' | 'distance_meters' | 'race_time' | 'race_delta' | 'race_placement' | 'total_entries' | 'lane' | 'boat_number' | 'notes'> {}
 
 class Race extends Model<RaceAttributes, RaceCreationAttributes> implements RaceAttributes {
   public race_id!: string; // Changed from number to string (UUID)
@@ -31,12 +30,13 @@ class Race extends Model<RaceAttributes, RaceCreationAttributes> implements Race
   public lineup_id?: string; // Changed from number to string (UUID) to match Lineup model
   public event_name!: string;
   public race_date?: Date;
-  public race_time?: string;
+  public race_time?: Date;
   public distance_meters!: number;
   public result_time_seconds?: number;
   public placement?: number;
   public total_entries?: number;
-  public lane_number?: number;
+  public lane?: number;
+  public boat_number?: number;
   public notes?: string;
   public created_at!: Date;
   public updated_at!: Date;
@@ -73,11 +73,11 @@ Race.init(
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    race_date: {
+    event_date: {
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    race_time: {
+    event_time: {
       type: DataTypes.TIME,
       allowNull: true,
     },
@@ -89,14 +89,21 @@ Race.init(
         min: 0,
       },
     },
-    result_time_seconds: {
+    race_time: {
       type: DataTypes.INTEGER,
       allowNull: true,
       validate: {
         min: 0,
       },
     },
-    placement: {
+    race_delta: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+      },
+    },
+    race_placement: {
       type: DataTypes.INTEGER,
       allowNull: true,
       validate: {
@@ -110,12 +117,12 @@ Race.init(
         min: 1,
       },
     },
-    lane_number: {
+    lane: {
       type: DataTypes.INTEGER,
       allowNull: true,
       validate: {
         min: 1,
-        max: 8, // Most regattas have max 8 lanes
+        max: 10, // Most regattas have max 10 lanes
       },
     },
     notes: {
@@ -146,7 +153,7 @@ Race.init(
         fields: ['lineup_id'],
       },
       {
-        fields: ['race_date'],
+        fields: ['event_date'],
       },
       {
         fields: ['event_name'],

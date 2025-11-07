@@ -58,7 +58,6 @@ router.get('/', authMiddleware.verifyToken, async (req: Request, res: Response) 
         'start_time',
         'end_time',
         'session_type',
-        'location',
         'notes',
         'created_at',
         'updated_at'
@@ -99,7 +98,6 @@ router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
         'start_time',
         'end_time',
         'session_type',
-        'location',
         'notes',
         'created_at',
         'updated_at'
@@ -145,7 +143,6 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       start_time,
       end_time,
       session_type = 'Practice',
-      location,
       notes
     } = req.body;
 
@@ -165,7 +162,6 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       start_time,
       end_time,
       session_type,
-      location,
       notes
     });
 

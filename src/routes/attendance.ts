@@ -58,7 +58,6 @@ router.get('/athlete/:athleteId', authMiddleware.verifyToken, async (req: Reques
         'start_time',
         'end_time',
         'session_type',
-        'location',
         'notes'
       ]
     }] : [];
@@ -299,7 +298,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
 
     // Validate status if provided
     if (status) {
-      const validStatuses = ['Yes', 'No', 'Maybe', 'Late', 'Excused'];
+      const validStatuses = ['Yes', 'No'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,

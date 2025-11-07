@@ -70,7 +70,6 @@ export class PracticeSessionService {
           'start_time',
           'end_time',
           'session_type',
-          'location',
           'notes',
           'created_at',
           'updated_at'
@@ -149,7 +148,6 @@ export class PracticeSessionService {
           'start_time',
           'end_time',
           'session_type',
-          'location',
           'notes',
           'created_at',
           'updated_at'
@@ -220,7 +218,6 @@ export class PracticeSessionService {
           'start_time',
           'end_time',
           'session_type',
-          'location',
           'notes',
           'created_at',
           'updated_at'
@@ -261,7 +258,6 @@ export class PracticeSessionService {
           'start_time',
           'end_time',
           'session_type',
-          'location',
           'notes',
           'created_at',
           'updated_at'
@@ -291,7 +287,6 @@ export class PracticeSessionService {
     start_time: string;
     end_time?: string;
     session_type: 'Practice' | 'Race' | 'Erg Test' | 'Meeting' | 'Other';
-    location?: string;
     notes?: string;
   }): Promise<PracticeSessionWithTeam> {
     try {
