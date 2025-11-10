@@ -22,6 +22,12 @@ import GauntletMatch from './GauntletMatch';
 import GauntletLineup from './GauntletLineup';
 import GauntletSeatAssignment from './GauntletSeatAssignment';
 import GauntletPosition from './GauntletPosition';
+// Challenge models
+import Challenge from './Challenge';
+import SavedLineup from './SavedLineup';
+import SavedLineupSeatAssignment from './SavedLineupSeatAssignment';
+import ChallengeLineups from './ChallengeLineups';
+import ChallengeEntry from './ChallengeEntry';
 
 // Define associations
 export function setupAssociations() {
@@ -370,6 +376,104 @@ export function setupAssociations() {
     as: 'lineup'
   });
 
+  // Challenge System associations (Option 2: Saved Lineups Architecture)
+  
+  // SavedLineup -> SavedLineupSeatAssignment (One-to-Many)
+  SavedLineup.hasMany(SavedLineupSeatAssignment, {
+    foreignKey: 'saved_lineup_id',
+    as: 'seat_assignments',
+    onDelete: 'CASCADE'
+  });
+
+  SavedLineupSeatAssignment.belongsTo(SavedLineup, {
+    foreignKey: 'saved_lineup_id',
+    as: 'saved_lineup'
+  });
+
+  // SavedLineup -> ChallengeLineup (One-to-Many)
+  // Note: A saved lineup can participate in multiple challenges by creating multiple ChallengeLineup records
+  SavedLineup.hasMany(ChallengeLineups, {
+    foreignKey: 'saved_lineup_id',
+    as: 'challenge_lineups',
+    onDelete: 'CASCADE'
+  });
+
+  ChallengeLineups.belongsTo(SavedLineup, {
+    foreignKey: 'saved_lineup_id',
+    as: 'saved_lineup'
+  });
+
+  // Challenge -> ChallengeLineup (One-to-Many)
+  Challenge.hasMany(ChallengeLineups, {
+    foreignKey: 'challenge_id',
+    as: 'lineups',
+    onDelete: 'CASCADE'
+  });
+
+  ChallengeLineups.belongsTo(Challenge, {
+    foreignKey: 'challenge_id',
+    as: 'challenge'
+  });
+
+  // ChallengeLineup -> ChallengeEntry (One-to-Many)
+  ChallengeLineups.hasMany(ChallengeEntry, {
+    foreignKey: 'lineup_id',
+    as: 'entries',
+    onDelete: 'CASCADE'
+  });
+
+  ChallengeEntry.belongsTo(ChallengeLineups, {
+    foreignKey: 'lineup_id',
+    as: 'lineup'
+  });
+
+  // Athlete -> SavedLineup (One-to-Many) - created_by relationship
+  Athlete.hasMany(SavedLineup, {
+    foreignKey: 'created_by',
+    as: 'created_saved_lineups'
+  });
+
+  SavedLineup.belongsTo(Athlete, {
+    foreignKey: 'created_by',
+    as: 'creator'
+  });
+
+  // Athlete -> SavedLineupSeatAssignment (One-to-Many)
+  Athlete.hasMany(SavedLineupSeatAssignment, {
+    foreignKey: 'athlete_id',
+    as: 'saved_lineup_seat_assignments',
+    onDelete: 'CASCADE'
+  });
+
+  SavedLineupSeatAssignment.belongsTo(Athlete, {
+    foreignKey: 'athlete_id',
+    as: 'athlete'
+  });
+
+  // Boat -> SavedLineup (One-to-Many)
+  // Note: The same boat can be used in multiple saved_lineups
+  Boat.hasMany(SavedLineup, {
+    foreignKey: 'boat_id',
+    as: 'saved_lineups',
+    onDelete: 'CASCADE'
+  });
+
+  SavedLineup.belongsTo(Boat, {
+    foreignKey: 'boat_id',
+    as: 'boat'
+  });
+
+  // Team -> SavedLineup (One-to-Many, optional)
+  Team.hasMany(SavedLineup, {
+    foreignKey: 'team_id',
+    as: 'saved_lineups'
+  });
+
+  SavedLineup.belongsTo(Team, {
+    foreignKey: 'team_id',
+    as: 'team'
+  });
+
 }
 
 // Initialize associations
@@ -398,7 +502,13 @@ export {
   GauntletMatch,
   GauntletLineup,
   GauntletSeatAssignment,
-  GauntletPosition
+  GauntletPosition,
+  // Challenge models
+  Challenge,
+  SavedLineup,
+  SavedLineupSeatAssignment,
+  ChallengeLineups,
+  ChallengeEntry
 };
 
 export default sequelize;
