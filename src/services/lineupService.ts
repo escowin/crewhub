@@ -274,18 +274,18 @@ export class LineupService {
         throw new Error('Each seat number can only be assigned once');
       }
 
-      // Validate all athletes have attendance.status = 'Yes' for the session
+      // Validate all athletes have attendance.is_attending = true for the session
       const attendanceRecords = await Attendance.findAll({
         where: {
           session_id: lineupData.session_id,
           athlete_id: { [Op.in]: athleteIds },
-          status: 'Yes'
+          is_attending: true
         },
         transaction
       });
 
       if (attendanceRecords.length !== athleteIds.length) {
-        throw new Error(`One or more athletes do not have attendance status 'Yes' for this session`);
+        throw new Error(`One or more athletes do not have attendance is_attending = true for this session`);
       }
 
       // Validate seat numbers are within valid range
@@ -560,12 +560,12 @@ export class LineupService {
         throw new Error('Practice session not found or access denied');
       }
 
-      // Find all athletes with attendance status "Yes" for this session
-      // Join Attendance -> Athlete, filter by session_id and status = 'Yes'
+      // Find all athletes with attendance is_attending = true for this session
+      // Join Attendance -> Athlete, filter by session_id and is_attending = true
       const attendanceRecords = await Attendance.findAll({
         where: {
           session_id: sessionId,
-          status: 'Yes',
+          is_attending: true,
           team_id: teamId
         },
         include: [

@@ -5,7 +5,7 @@ import { Op } from 'sequelize';
 export interface AttendanceSubmissionData {
   session_id: number;
   athlete_id: string;
-  status: 'Yes' | 'No' ;
+  is_attending: boolean;
   notes?: string;
   team_id: number;
   client_id?: string; // Optional client-generated UUID for offline sync
@@ -60,7 +60,7 @@ export class AttendanceService {
 
         // Update existing record
         const updateData: any = {
-          status: data.status,
+          is_attending: data.is_attending,
           etl_source: 'api',
           etl_last_sync: new Date()
         };
@@ -76,7 +76,7 @@ export class AttendanceService {
         const createData: any = {
           session_id: data.session_id,
           athlete_id: data.athlete_id,
-          status: data.status,
+          is_attending: data.is_attending,
           team_id: data.team_id,
           etl_source: 'api',
           etl_last_sync: new Date()
@@ -128,7 +128,7 @@ export class AttendanceService {
   ): Promise<AttendanceConflictResolution | null> {
     // Check if there's actually a conflict
     const hasConflict = (
-      clientData.status !== serverData.status ||
+      clientData.is_attending !== serverData.is_attending ||
       clientData.notes !== serverData.notes
     );
 
@@ -174,7 +174,7 @@ export class AttendanceService {
         // Merge notes from both client and server
         const mergedNotes = this.mergeNotes(clientData.notes, serverData.notes);
         clientData.notes = mergedNotes;
-        // Proceed with client status but merged notes
+        // Proceed with client is_attending but merged notes
         return null;
 
       default:
@@ -269,7 +269,7 @@ export class AttendanceService {
 
       if (clientData) {
         const hasConflict = (
-          clientData.status !== serverData.status ||
+          clientData.is_attending !== serverData.is_attending ||
           clientData.notes !== serverData.notes
         );
 
@@ -309,9 +309,8 @@ export class AttendanceService {
       errors.push('Invalid team_id');
     }
 
-    const validStatuses = ['Yes', 'No'];
-    if (!validStatuses.includes(data.status)) {
-      errors.push(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    if (typeof data.is_attending !== 'boolean') {
+      errors.push('Invalid is_attending. Must be a boolean (true or false)');
     }
 
     return {
@@ -363,7 +362,7 @@ export class AttendanceService {
           'attendance_id',
           'session_id',
           'athlete_id',
-          'status',
+          'is_attending',
           'notes',
           'team_id',
           'created_at',
@@ -402,9 +401,10 @@ export class AttendanceService {
         whereClause.athlete_id = athleteId;
       }
 
-      // Filter by status if specified
-      if (status) {
-        whereClause.status = status;
+      // Filter by is_attending if specified
+      if (status !== undefined) {
+        // Convert 'Yes'/'No' string to boolean for backward compatibility
+        whereClause.is_attending = status === 'Yes' || status === true;
       }
 
       // Filter by date range through session
@@ -434,7 +434,7 @@ export class AttendanceService {
           'attendance_id',
           'session_id',
           'athlete_id',
-          'status',
+          'is_attending',
           'notes',
           'team_id',
           'created_at',
@@ -491,14 +491,14 @@ export class AttendanceService {
           as: 'session',
           attributes: ['date']
         }],
-        attributes: ['status'],
+        attributes: ['is_attending'],
         order: [['$session.date$', 'DESC']]
       });
 
       // Calculate statistics
       const totalSessions = attendanceRecords.length;
       const statusCounts = attendanceRecords.reduce((acc, record) => {
-        const status = record.status || 'Not Marked';
+        const status = record.is_attending ? 'Yes' : 'No';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
@@ -574,7 +574,7 @@ export class AttendanceService {
           'attendance_id',
           'session_id',
           'athlete_id',
-          'status',
+          'is_attending',
           'notes',
           'team_id',
           'created_at',

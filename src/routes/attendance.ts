@@ -36,9 +36,9 @@ router.get('/athlete/:athleteId', authMiddleware.verifyToken, async (req: Reques
       athlete_id: athleteId
     };
 
-    // Filter by status
+    // Filter by is_attending (convert 'Yes'/'No' string to boolean for backward compatibility)
     if (status) {
-      whereClause.status = status;
+      whereClause.is_attending = status === 'Yes' || status === true;
     }
 
     // Filter by date range
@@ -70,7 +70,7 @@ router.get('/athlete/:athleteId', authMiddleware.verifyToken, async (req: Reques
         'attendance_id',
         'session_id',
         'athlete_id',
-        'status',
+        'is_attending',
         'notes',
         'team_id',
         'created_at',
@@ -152,9 +152,9 @@ router.get('/session/:sessionId', authMiddleware.verifyToken, async (req: Reques
       session_id: sessionId
     };
 
-    // Filter by status
+    // Filter by is_attending (convert 'Yes'/'No' string to boolean for backward compatibility)
     if (status) {
-      whereClause.status = status;
+      whereClause.is_attending = status === 'Yes' || status === true;
     }
 
     const attendanceRecords = await Attendance.findAll({
@@ -164,7 +164,7 @@ router.get('/session/:sessionId', authMiddleware.verifyToken, async (req: Reques
         'attendance_id',
         'session_id',
         'athlete_id',
-        'status',
+        'is_attending',
         'notes',
         'team_id',
         'created_at',
@@ -201,6 +201,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       session_id,
       athlete_id,
       status,
+      is_attending,
       notes,
       team_id,
       client_id,
@@ -208,12 +209,37 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
       conflict_resolution = 'latest_wins'
     } = req.body;
 
-    // Validate required fields
-    if (!session_id || !athlete_id || !status || !team_id) {
+    // Handle backward compatibility: accept both 'status' ('Yes'/'No') and 'is_attending' (boolean)
+    let isAttendingValue: boolean;
+    if (is_attending !== undefined) {
+      isAttendingValue = Boolean(is_attending);
+    } else if (status !== undefined) {
+      // Convert legacy 'Yes'/'No' string to boolean
+      if (status === 'Yes' || status === 'No') {
+        isAttendingValue = status === 'Yes';
+      } else {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          message: `Invalid status. Must be 'Yes' or 'No', or use is_attending (boolean)`,
+          error: 'VALIDATION_ERROR'
+        });
+      }
+    } else {
       return res.status(400).json({
         success: false,
         data: null,
-        message: 'Missing required fields: session_id, athlete_id, status, team_id',
+        message: 'Missing required fields: session_id, athlete_id, is_attending (or status), team_id',
+        error: 'VALIDATION_ERROR'
+      });
+    }
+
+    // Validate required fields
+    if (!session_id || !athlete_id || !team_id) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Missing required fields: session_id, athlete_id, team_id',
         error: 'VALIDATION_ERROR'
       });
     }
@@ -222,7 +248,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const validation = attendanceService.validateAttendanceData({
       session_id,
       athlete_id,
-      status,
+      is_attending: isAttendingValue,
       notes,
       team_id,
       client_id,
@@ -243,7 +269,7 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
     const result = await attendanceService.upsertAttendance({
       session_id,
       athlete_id,
-      status,
+      is_attending: isAttendingValue,
       notes,
       team_id,
       client_id,
@@ -294,16 +320,21 @@ router.post('/', authMiddleware.verifyToken, async (req: Request, res: Response)
 router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { is_attending, status, notes } = req.body;
 
-    // Validate status if provided
-    if (status) {
-      const validStatuses = ['Yes', 'No'];
-      if (!validStatuses.includes(status)) {
+    // Handle backward compatibility: accept both 'status' ('Yes'/'No') and 'is_attending' (boolean)
+    let isAttendingValue: boolean | undefined;
+    if (is_attending !== undefined) {
+      isAttendingValue = Boolean(is_attending);
+    } else if (status !== undefined) {
+      // Convert legacy 'Yes'/'No' string to boolean
+      if (status === 'Yes' || status === 'No') {
+        isAttendingValue = status === 'Yes';
+      } else {
         return res.status(400).json({
           success: false,
           data: null,
-          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+          message: `Invalid status. Must be 'Yes' or 'No', or use is_attending (boolean)`,
           error: 'VALIDATION_ERROR'
         });
       }
@@ -324,7 +355,7 @@ router.put('/:id', authMiddleware.verifyToken, async (req: Request, res: Respons
       etl_last_sync: new Date()
     };
 
-    if (status !== undefined) updateData.status = status;
+    if (isAttendingValue !== undefined) updateData.is_attending = isAttendingValue;
     if (notes !== undefined) updateData.notes = notes;
 
     await attendanceRecord.update(updateData);
@@ -489,13 +520,13 @@ router.get('/stats/athlete/:athleteId', authMiddleware.verifyToken, async (req: 
         as: 'session',
         attributes: ['date']
       }],
-      attributes: ['status']
+      attributes: ['is_attending']
     });
 
     // Calculate statistics
     const totalSessions = attendanceRecords.length;
     const statusCounts = attendanceRecords.reduce((acc, record) => {
-      const status = record.status || 'Not Marked';
+      const status = record.is_attending ? 'Yes' : 'No';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

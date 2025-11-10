@@ -6,7 +6,7 @@ interface AttendanceAttributes {
   attendance_id: string; // Changed from number to string (UUID)
   session_id: number;
   athlete_id: string;
-  status: 'Yes' | 'No' | null;
+  is_attending: boolean;
   notes?: string;
   team_id: number;
   created_at: Date;
@@ -24,7 +24,7 @@ class Attendance extends Model<AttendanceAttributes, AttendanceCreationAttribute
   public attendance_id!: string; // Changed from number to string (UUID)
   public session_id!: number;
   public athlete_id!: string;
-  public status!: 'Yes' | 'No' | null;
+  public is_attending!: boolean;
   public notes?: string;
   public team_id!: number;
   public created_at!: Date;
@@ -62,9 +62,10 @@ Attendance.init(
       },
       onDelete: 'CASCADE',
     },
-    status: {
-      type: DataTypes.ENUM('Yes', 'No'),
-      allowNull: true,
+    is_attending: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     notes: {
       type: DataTypes.TEXT,
@@ -113,7 +114,7 @@ Attendance.init(
         fields: ['team_id'],
       },
       {
-        fields: ['status'],
+        fields: ['is_attending'],
       },
       {
         // Ensure one record per athlete per session
