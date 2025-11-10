@@ -5,3 +5,4 @@ export { lineupService, LineupService } from './lineupService';
 export { GauntletService } from './gauntletService';
 export { teamService, TeamService } from './teamService';
 export { practiceSessionService, PracticeSessionService } from './practiceSessionService';
+export { challengeService, ChallengeService } from './challengeService';
