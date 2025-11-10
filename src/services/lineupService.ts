@@ -543,7 +543,7 @@ export class LineupService {
   }
 
   /**
-   * Get available athletes for a practice session (those with attendance status "Yes")
+   * Get available athletes for a practice session (those with is_attending = true)
    * Joins PracticeSession -> Attendance -> Athlete to get athletes who have committed to the session
    */
   async getAvailableAthletesForSession(sessionId: number, teamId: number): Promise<Athlete[]> {

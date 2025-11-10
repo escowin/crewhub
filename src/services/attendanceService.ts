@@ -386,11 +386,11 @@ export class AttendanceService {
       startDate?: Date;
       endDate?: Date;
       athleteId?: string;
-      status?: string;
+      is_attending?: boolean;
     } = {}
   ): Promise<Attendance[]> {
     try {
-      const { startDate, endDate, athleteId, status } = options;
+      const { startDate, endDate, athleteId, is_attending } = options;
 
       const whereClause: any = {
         team_id: teamId
@@ -401,10 +401,9 @@ export class AttendanceService {
         whereClause.athlete_id = athleteId;
       }
 
-      // Filter by is_attending if specified
-      if (status !== undefined) {
-        // Convert 'Yes'/'No' string to boolean for backward compatibility
-        whereClause.is_attending = status === 'Yes' || status === true;
+      // Filter by is_attending if specified (boolean)
+      if (is_attending !== undefined) {
+        whereClause.is_attending = is_attending;
       }
 
       // Filter by date range through session
@@ -498,13 +497,13 @@ export class AttendanceService {
       // Calculate statistics
       const totalSessions = attendanceRecords.length;
       const statusCounts = attendanceRecords.reduce((acc, record) => {
-        const status = record.is_attending ? 'Yes' : 'No';
-        acc[status] = (acc[status] || 0) + 1;
+        const key = record.is_attending ? 'attending' : 'not_attending';
+        acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
       const attendanceRate = totalSessions > 0 
-        ? ((statusCounts['Yes'] || 0) / totalSessions * 100)
+        ? ((statusCounts['attending'] || 0) / totalSessions * 100)
         : 0;
 
       return {
