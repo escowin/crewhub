@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware';
 import { challengeService } from '../services/challengeService';
+import { parseDate, formatDateString } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -559,7 +560,7 @@ router.post('/entries/atomic', authMiddleware.verifyToken, async (req: Request, 
       time_seconds,
       split_seconds,
       stroke_rate,
-      entry_date: entry_date ? new Date(entry_date) : new Date(),
+      entry_date: formatDateString(entry_date || new Date()), // Keep as string for DATEONLY field
       entry_time: entry_time ? new Date(entry_time) : new Date(),
       notes,
       conditions
@@ -631,7 +632,7 @@ router.post('/entries/atomic-existing', authMiddleware.verifyToken, async (req: 
       time_seconds,
       split_seconds,
       stroke_rate,
-      entry_date: entry_date ? new Date(entry_date) : new Date(),
+      entry_date: formatDateString(entry_date || new Date()), // Keep as string for DATEONLY field
       entry_time: entry_time ? new Date(entry_time) : new Date(),
       notes,
       conditions
@@ -715,7 +716,8 @@ router.post('/entries', authMiddleware.verifyToken, async (req: Request, res: Re
     }
 
     if (entry_date) {
-      entryData.entry_date = new Date(entry_date);
+      // Keep as string for DATEONLY field to avoid timezone conversion
+      entryData.entry_date = formatDateString(entry_date);
     }
 
     if (entry_time) {
@@ -1189,7 +1191,8 @@ router.put('/entries/:id', authMiddleware.verifyToken, async (req: Request, res:
     }
 
     if (entry_date !== undefined) {
-      updateData.entry_date = new Date(entry_date);
+      // Keep as string for DATEONLY field to avoid timezone conversion
+      updateData.entry_date = formatDateString(entry_date);
     }
 
     if (entry_time !== undefined) {

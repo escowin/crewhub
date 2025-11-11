@@ -9,6 +9,7 @@ import {
 } from '../models';
 import sequelize from '../config/database';
 import { QueryTypes } from 'sequelize';
+import { formatDateString } from '../utils/dateUtils';
 
 export interface LeaderboardEntry {
   challenge_lineup_id: string;
@@ -533,7 +534,7 @@ export class ChallengeService {
       challenge_entry_id: data.challenge_entry_id,
       lineup_id: data.lineup_id,
       time_seconds: data.time_seconds,
-      entry_date: data.entry_date || new Date(),
+      entry_date: formatDateString(data.entry_date || new Date()), // Keep as string for DATEONLY field
       entry_time: data.entry_time || new Date()
     };
     
