@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/middleware';
 import { challengeService } from '../services/challengeService';
-import { parseDate, formatDateString } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -136,6 +135,51 @@ router.get('/saved-lineups/all', authMiddleware.verifyToken, async (_req: Reques
       success: false,
       data: null,
       message: 'Failed to fetch saved lineups',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/challenges/leaderboards-sync
+ * Get all challenge leaderboard data atomically (for bulk sync)
+ * Filters saved_lineups and seat_assignments to only include those belonging to the authenticated user
+ */
+router.get('/leaderboards-sync', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+  try {
+    const athleteId = req.user?.athlete_id;
+    
+    console.log(`[leaderboards-sync] Request received, athleteId: ${athleteId}, type: ${typeof athleteId}`);
+    console.log(`[leaderboards-sync] req.user:`, JSON.stringify(req.user, null, 2));
+    
+    if (!athleteId) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'Unauthorized: No athlete ID found',
+        error: 'UNAUTHORIZED'
+      });
+    }
+
+    const data = await challengeService.getAllLeaderboardDataSync(athleteId);
+
+    return res.json({
+      success: true,
+      data: {
+        lineups: data.lineups,
+        entries: data.entries,
+        savedLineups: data.savedLineups,
+        seatAssignments: data.seatAssignments
+      },
+      message: `Found ${data.lineups.length} lineups, ${data.entries.length} entries, ${data.savedLineups.length} saved lineups, ${data.seatAssignments.length} seat assignments`,
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching leaderboard sync data:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch leaderboard sync data',
       error: error.message || 'INTERNAL_ERROR'
     });
   }
@@ -560,7 +604,7 @@ router.post('/entries/atomic', authMiddleware.verifyToken, async (req: Request, 
       time_seconds,
       split_seconds,
       stroke_rate,
-      entry_date: formatDateString(entry_date || new Date()), // Keep as string for DATEONLY field
+      entry_date: entry_date ? new Date(entry_date) : new Date(),
       entry_time: entry_time ? new Date(entry_time) : new Date(),
       notes,
       conditions
@@ -632,7 +676,7 @@ router.post('/entries/atomic-existing', authMiddleware.verifyToken, async (req: 
       time_seconds,
       split_seconds,
       stroke_rate,
-      entry_date: formatDateString(entry_date || new Date()), // Keep as string for DATEONLY field
+      entry_date: entry_date ? new Date(entry_date) : new Date(),
       entry_time: entry_time ? new Date(entry_time) : new Date(),
       notes,
       conditions
@@ -716,8 +760,7 @@ router.post('/entries', authMiddleware.verifyToken, async (req: Request, res: Re
     }
 
     if (entry_date) {
-      // Keep as string for DATEONLY field to avoid timezone conversion
-      entryData.entry_date = formatDateString(entry_date);
+      entryData.entry_date = entry_date ? new Date(entry_date) : new Date();
     }
 
     if (entry_time) {
@@ -1191,8 +1234,7 @@ router.put('/entries/:id', authMiddleware.verifyToken, async (req: Request, res:
     }
 
     if (entry_date !== undefined) {
-      // Keep as string for DATEONLY field to avoid timezone conversion
-      updateData.entry_date = formatDateString(entry_date);
+      updateData.entry_date = entry_date ? new Date(entry_date) : new Date();
     }
 
     if (entry_time !== undefined) {

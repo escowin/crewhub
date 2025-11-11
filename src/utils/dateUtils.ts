@@ -18,7 +18,27 @@ export function parseLocalDate(dateString: string): Date {
     throw new Error(`Invalid date format: ${dateString}. Expected YYYY-MM-DD`);
   }
   
-  const [year, month, day] = dateString.split('-').map(Number);
+  const parts = dateString.split('-');
+  if (parts.length !== 3) {
+    throw new Error(`Invalid date format: ${dateString}. Expected YYYY-MM-DD`);
+  }
+  
+  const yearStr = parts[0];
+  const monthStr = parts[1];
+  const dayStr = parts[2];
+  
+  if (!yearStr || !monthStr || !dayStr) {
+    throw new Error(`Invalid date format: ${dateString}. Expected YYYY-MM-DD`);
+  }
+  
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+  
+  // Validate parsed values
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    throw new Error(`Invalid date format: ${dateString}. Could not parse numbers`);
+  }
   
   // Use local time constructor to avoid UTC interpretation
   // Month is 0-indexed in JavaScript Date constructor

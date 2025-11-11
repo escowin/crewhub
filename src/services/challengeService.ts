@@ -8,7 +8,7 @@ import {
   Athlete
 } from '../models';
 import sequelize from '../config/database';
-import { QueryTypes } from 'sequelize';
+import { QueryTypes, Op } from 'sequelize';
 import { formatDateString } from '../utils/dateUtils';
 
 export interface LeaderboardEntry {
@@ -634,7 +634,7 @@ export class ChallengeService {
         challenge_entry_id: data.challenge_entry_id,
         lineup_id: data.challenge_lineup_id,
         time_seconds: data.time_seconds,
-        entry_date: data.entry_date,
+        entry_date: formatDateString(data.entry_date), // Keep as string for DATEONLY field
         entry_time: data.entry_time
       };
       if (data.split_seconds !== undefined) {
@@ -725,7 +725,7 @@ export class ChallengeService {
         challenge_entry_id: data.challenge_entry_id,
         lineup_id: lineupIdToUse,
         time_seconds: data.time_seconds,
-        entry_date: data.entry_date,
+        entry_date: formatDateString(data.entry_date), // Keep as string for DATEONLY field
         entry_time: data.entry_time
       };
       if (data.split_seconds !== undefined) {
@@ -814,6 +814,149 @@ export class ChallengeService {
     return await SavedLineupSeatAssignment.findAll({
       order: [['saved_lineup_id', 'ASC'], ['seat_number', 'ASC']]
     });
+  }
+
+  /**
+   * Get all challenge leaderboard data atomically (for bulk sync)
+   * Filters saved_lineups and seat_assignments to only include those belonging to the user
+   */
+  static async getAllLeaderboardDataSync(athleteId: string): Promise<{
+    lineups: ChallengeLineups[];
+    entries: ChallengeEntry[];
+    savedLineups: SavedLineup[];
+    seatAssignments: SavedLineupSeatAssignment[];
+  }> {
+    // Get all challenge lineups and entries (no filtering needed)
+    const [lineups, entries] = await Promise.all([
+      this.getAllChallengeLineups(),
+      this.getAllChallengeEntries()
+    ]);
+
+    // Get seat assignments where the user's athlete_id appears
+    console.log(`[getAllLeaderboardDataSync] Searching for seat assignments with athlete_id: ${athleteId} (type: ${typeof athleteId})`);
+    
+    // First, let's check if ANY seat assignments exist
+    const allSeatAssignments = await SavedLineupSeatAssignment.findAll({ limit: 5 });
+    console.log(`[getAllLeaderboardDataSync] Sample seat assignments in DB:`, allSeatAssignments.map(sa => ({
+      saved_lineup_seat_id: sa.getDataValue('saved_lineup_seat_id'),
+      saved_lineup_id: sa.getDataValue('saved_lineup_id'),
+      athlete_id: sa.getDataValue('athlete_id'),
+      athlete_id_type: typeof sa.getDataValue('athlete_id')
+    })));
+    
+    const userSeatAssignments = await SavedLineupSeatAssignment.findAll({
+      where: { athlete_id: athleteId },
+      order: [['saved_lineup_id', 'ASC'], ['seat_number', 'ASC']]
+    });
+
+    console.log(`[getAllLeaderboardDataSync] Found ${userSeatAssignments.length} seat assignments for athlete ${athleteId}`);
+    if (userSeatAssignments.length > 0 && userSeatAssignments[0]) {
+      const firstAssignment = userSeatAssignments[0];
+      console.log(`[getAllLeaderboardDataSync] Sample seat assignment:`, {
+        saved_lineup_seat_id: firstAssignment.getDataValue('saved_lineup_seat_id'),
+        saved_lineup_id: firstAssignment.getDataValue('saved_lineup_id'),
+        athlete_id: firstAssignment.getDataValue('athlete_id')
+      });
+    }
+
+    // Extract unique saved_lineup_ids from user's seat assignments
+    // Use getDataValue() to access actual database values (class fields shadow getters)
+    const userSavedLineupIdsFromSeats = [...new Set(userSeatAssignments.map(sa => sa.getDataValue('saved_lineup_id')))];
+
+    // Also get saved lineups where the user is the creator (in case seat assignments are missing)
+    console.log(`[getAllLeaderboardDataSync] Searching for saved lineups with created_by: ${athleteId} (type: ${typeof athleteId})`);
+    
+    // First, let's check if ANY saved lineups exist
+    const allSavedLineups = await SavedLineup.findAll({ 
+      where: { is_active: true },
+      limit: 5,
+      attributes: ['saved_lineup_id', 'created_by']
+    });
+    console.log(`[getAllLeaderboardDataSync] Sample saved lineups in DB:`, allSavedLineups.map(sl => ({
+      saved_lineup_id: sl.getDataValue('saved_lineup_id'),
+      created_by: sl.getDataValue('created_by'),
+      created_by_type: typeof sl.getDataValue('created_by')
+    })));
+    
+    const userCreatedLineups = await SavedLineup.findAll({
+      where: {
+        created_by: athleteId,
+        is_active: true
+      },
+      attributes: ['saved_lineup_id']
+    });
+    console.log(`[getAllLeaderboardDataSync] Found ${userCreatedLineups.length} saved lineups created by athlete ${athleteId}`);
+    if (userCreatedLineups.length > 0 && userCreatedLineups[0]) {
+      const firstLineup = userCreatedLineups[0];
+      console.log(`[getAllLeaderboardDataSync] Sample created lineup:`, {
+        saved_lineup_id: firstLineup.getDataValue('saved_lineup_id')
+      });
+    }
+    
+    // Use getDataValue() to access actual database values (class fields shadow getters)
+    const userSavedLineupIdsFromCreated = userCreatedLineups.map(sl => sl.getDataValue('saved_lineup_id'));
+
+    // Combine both sets of saved_lineup_ids
+    const userSavedLineupIds = [...new Set([...userSavedLineupIdsFromSeats, ...userSavedLineupIdsFromCreated])];
+    console.log(`[getAllLeaderboardDataSync] Total unique saved_lineup_ids: ${userSavedLineupIds.length} (${userSavedLineupIdsFromSeats.length} from seats, ${userSavedLineupIdsFromCreated.length} from created)`);
+
+    // Get saved lineups that belong to the user (via seat assignments OR created_by)
+    const userSavedLineups = userSavedLineupIds.length > 0
+      ? await SavedLineup.findAll({
+          where: {
+            saved_lineup_id: {
+              [Op.in]: userSavedLineupIds
+            },
+            is_active: true
+          },
+          include: [
+            {
+              model: Boat,
+              as: 'boat',
+              attributes: ['boat_id', 'name', 'type']
+            }
+          ]
+        })
+      : [];
+
+    console.log(`[getAllLeaderboardDataSync] Found ${userSavedLineups.length} saved lineups after query`);
+
+    // Get ALL seat assignments for the user's saved lineups (includes sibling records)
+    // Example: If user is in a 4-person boat lineup, this returns all 4 seat assignments
+    // (user's seat + all teammates' seats) since they all share the same saved_lineup_id
+    const allSeatAssignmentsForUserLineups = userSavedLineupIds.length > 0
+      ? await SavedLineupSeatAssignment.findAll({
+          where: {
+            saved_lineup_id: {
+              [Op.in]: userSavedLineupIds
+            }
+          },
+          order: [['saved_lineup_id', 'ASC'], ['seat_number', 'ASC']]
+        })
+      : [];
+
+    console.log(`[getAllLeaderboardDataSync] Found ${allSeatAssignmentsForUserLineups.length} seat assignments for user's lineups (includes all teammates)`);
+    
+    // Log breakdown by saved_lineup_id to verify sibling records are included
+    if (allSeatAssignmentsForUserLineups.length > 0) {
+      const assignmentsByLineup = new Map<string, number>();
+      allSeatAssignmentsForUserLineups.forEach(sa => {
+        const lineupId = sa.getDataValue('saved_lineup_id');
+        assignmentsByLineup.set(lineupId, (assignmentsByLineup.get(lineupId) || 0) + 1);
+      });
+      console.log(`[getAllLeaderboardDataSync] Seat assignments breakdown:`, 
+        Array.from(assignmentsByLineup.entries()).map(([lineupId, count]) => 
+          `${lineupId}: ${count} seats`
+        ).join(', ')
+      );
+    }
+
+    return {
+      lineups,
+      entries,
+      savedLineups: userSavedLineups,
+      seatAssignments: allSeatAssignmentsForUserLineups
+    };
   }
 
   /**
@@ -962,7 +1105,13 @@ export class ChallengeService {
       throw new Error('Challenge entry not found');
     }
 
-    await entry.update(updateData);
+    // Convert entry_date to string for DATEONLY field
+    const updateDataFormatted: any = { ...updateData };
+    if (updateData.entry_date !== undefined) {
+      updateDataFormatted.entry_date = formatDateString(updateData.entry_date);
+    }
+
+    await entry.update(updateDataFormatted);
     return entry;
   }
 
