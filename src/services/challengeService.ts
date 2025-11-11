@@ -706,10 +706,11 @@ export class ChallengeService {
           saved_lineup_id: data.saved_lineup_id,
           is_active: true
         }, { transaction });
-        lineupIdToUse = challengeLineup.challenge_lineup_id;
+        // Use getDataValue() to access actual database value (class fields shadow getters)
+        lineupIdToUse = challengeLineup.getDataValue('challenge_lineup_id') || data.challenge_lineup_id;
       } else {
-        // Capture the ID immediately after findOne, before any modifications
-        lineupIdToUse = challengeLineup.challenge_lineup_id || challengeLineup.getDataValue('challenge_lineup_id');
+        // Capture the ID using getDataValue() to access actual database value (class fields shadow getters)
+        lineupIdToUse = challengeLineup.getDataValue('challenge_lineup_id');
         // Update if exists - use the existing challenge_lineup_id
         challengeLineup.is_active = true;
         await challengeLineup.save({ transaction });
@@ -717,7 +718,8 @@ export class ChallengeService {
 
       // Ensure we have a valid lineup_id
       if (!lineupIdToUse) {
-        throw new Error(`Failed to determine challenge_lineup_id for challenge entry. Challenge lineup found: ${!!challengeLineup}, ID: ${challengeLineup?.challenge_lineup_id}`);
+        const foundId = challengeLineup ? challengeLineup.getDataValue('challenge_lineup_id') : 'null';
+        throw new Error(`Failed to determine challenge_lineup_id for challenge entry. Challenge lineup found: ${!!challengeLineup}, ID: ${foundId}`);
       }
 
       // 2. Create challenge_entry
