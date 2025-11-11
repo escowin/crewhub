@@ -455,12 +455,15 @@ export class ChallengeService {
       
       const savedLineup = await SavedLineup.create(createData, { transaction });
 
+      // Use getDataValue() to access actual database value (class fields shadow getters)
+      const savedLineupId = savedLineup.getDataValue('saved_lineup_id');
+
       // Create seat assignments
       await Promise.all(
         data.seat_assignments.map(sa =>
           SavedLineupSeatAssignment.create({
             saved_lineup_seat_id: sa.saved_lineup_seat_id,
-            saved_lineup_id: savedLineup.saved_lineup_id,
+            saved_lineup_id: savedLineupId,
             athlete_id: sa.athlete_id,
             seat_number: sa.seat_number,
             side: sa.side || ''
@@ -471,7 +474,7 @@ export class ChallengeService {
       await transaction.commit();
 
       // Return with associations
-      return await SavedLineup.findByPk(savedLineup.saved_lineup_id, {
+      return await SavedLineup.findByPk(savedLineupId, {
         include: [
           {
             model: SavedLineupSeatAssignment,
