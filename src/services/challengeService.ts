@@ -360,21 +360,28 @@ export class ChallengeService {
     athleteIds: string[],
     seatNumbers: number[]
   ): Promise<string | null> {
+    // Format arrays as PostgreSQL array literals
+    const athleteIdsArray = `ARRAY[${athleteIds.map(id => `'${id}'::UUID`).join(', ')}]`;
+    const seatNumbersArray = `ARRAY[${seatNumbers.join(', ')}]`;
+    
     const query = `
       SELECT sl.saved_lineup_id
       FROM saved_lineups sl
       INNER JOIN saved_lineup_seat_assignments slsa ON sl.saved_lineup_id = slsa.saved_lineup_id
-      WHERE sl.boat_id = $1
+      WHERE sl.boat_id = :boatId
         AND sl.is_active = true
       GROUP BY sl.saved_lineup_id
       HAVING 
-          COUNT(DISTINCT (slsa.athlete_id, slsa.seat_number)) = $2
-          AND ARRAY_AGG(slsa.athlete_id ORDER BY slsa.seat_number) = $3
-          AND ARRAY_AGG(slsa.seat_number ORDER BY slsa.seat_number) = $4;
+          COUNT(DISTINCT (slsa.athlete_id, slsa.seat_number)) = :seatCount
+          AND ARRAY_AGG(slsa.athlete_id ORDER BY slsa.seat_number) = ${athleteIdsArray}
+          AND ARRAY_AGG(slsa.seat_number ORDER BY slsa.seat_number) = ${seatNumbersArray};
     `;
 
     const results = await sequelize.query(query, {
-      replacements: [boatId, athleteIds.length, athleteIds, seatNumbers],
+      replacements: {
+        boatId: boatId,
+        seatCount: athleteIds.length
+      },
       type: QueryTypes.SELECT
     });
 
@@ -547,6 +554,265 @@ export class ChallengeService {
     }
     
     return await ChallengeEntry.create(createData);
+  }
+
+  /**
+   * Create challenge entry atomically with all related data (NEW saved lineup)
+   * This creates: saved_lineup, saved_lineup_seat_assignment, challenge_lineup, challenge_entry
+   * All in a single transaction
+   */
+  static async createChallengeEntryAtomic(data: {
+    saved_lineup_id: string;
+    boat_id: string;
+    lineup_name?: string;
+    created_by: string;
+    seat_assignments: Array<{
+      saved_lineup_seat_id: string;
+      athlete_id: string;
+      seat_number: number;
+      side?: string;
+    }>;
+    challenge_lineup_id: string;
+    challenge_id: number;
+    challenge_entry_id: string;
+    time_seconds: number;
+    split_seconds?: number;
+    stroke_rate?: number;
+    entry_date: Date;
+    entry_time: Date;
+    notes?: string;
+    conditions?: string;
+  }): Promise<{
+    saved_lineup: SavedLineup;
+    challenge_lineup: ChallengeLineups;
+    challenge_entry: ChallengeEntry;
+  }> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      // 1. Create saved_lineup
+      const savedLineupData: any = {
+        saved_lineup_id: data.saved_lineup_id,
+        boat_id: data.boat_id,
+        created_by: data.created_by,
+        is_active: true
+      };
+      if (data.lineup_name) {
+        savedLineupData.lineup_name = data.lineup_name;
+      }
+      const savedLineup = await SavedLineup.create(savedLineupData, { transaction });
+
+      // 2. Create saved_lineup_seat_assignments
+      await Promise.all(
+        data.seat_assignments.map(sa => {
+          const seatAssignmentData: any = {
+            saved_lineup_seat_id: sa.saved_lineup_seat_id,
+            saved_lineup_id: data.saved_lineup_id,
+            athlete_id: sa.athlete_id,
+            seat_number: sa.seat_number
+          };
+          if (sa.side) {
+            seatAssignmentData.side = sa.side as 'Port' | 'Starboard' | 'Scull' | '';
+          } else {
+            seatAssignmentData.side = '';
+          }
+          return SavedLineupSeatAssignment.create(seatAssignmentData, { transaction });
+        })
+      );
+
+      // 3. Create challenge_lineup
+      const challengeLineup = await ChallengeLineups.create({
+        challenge_lineup_id: data.challenge_lineup_id,
+        challenge_id: data.challenge_id,
+        saved_lineup_id: data.saved_lineup_id,
+        is_active: true
+      }, { transaction });
+
+      // 4. Create challenge_entry
+      const challengeEntryData: any = {
+        challenge_entry_id: data.challenge_entry_id,
+        lineup_id: data.challenge_lineup_id,
+        time_seconds: data.time_seconds,
+        entry_date: data.entry_date,
+        entry_time: data.entry_time
+      };
+      if (data.split_seconds !== undefined) {
+        challengeEntryData.split_seconds = data.split_seconds;
+      }
+      if (data.stroke_rate !== undefined) {
+        challengeEntryData.stroke_rate = data.stroke_rate;
+      }
+      if (data.notes) {
+        challengeEntryData.notes = data.notes;
+      }
+      if (data.conditions) {
+        challengeEntryData.conditions = data.conditions;
+      }
+      const challengeEntry = await ChallengeEntry.create(challengeEntryData, { transaction });
+
+      await transaction.commit();
+
+      return {
+        saved_lineup: savedLineup,
+        challenge_lineup: challengeLineup,
+        challenge_entry: challengeEntry
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  /**
+   * Create challenge entry atomically with existing saved lineup
+   * This creates: challenge_lineup, challenge_entry
+   * All in a single transaction
+   */
+  static async createChallengeEntryAtomicExisting(data: {
+    saved_lineup_id: string;
+    challenge_lineup_id: string;
+    challenge_id: number;
+    challenge_entry_id: string;
+    time_seconds: number;
+    split_seconds?: number;
+    stroke_rate?: number;
+    entry_date: Date;
+    entry_time: Date;
+    notes?: string;
+    conditions?: string;
+  }): Promise<{
+    challenge_lineup: ChallengeLineups;
+    challenge_entry: ChallengeEntry;
+  }> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      // 1. Create challenge_lineup (check if exists first)
+      let challengeLineup = await ChallengeLineups.findOne({
+        where: {
+          challenge_id: data.challenge_id,
+          saved_lineup_id: data.saved_lineup_id
+        },
+        transaction
+      });
+
+      let lineupIdToUse: string;
+      
+      if (!challengeLineup) {
+        challengeLineup = await ChallengeLineups.create({
+          challenge_lineup_id: data.challenge_lineup_id,
+          challenge_id: data.challenge_id,
+          saved_lineup_id: data.saved_lineup_id,
+          is_active: true
+        }, { transaction });
+        lineupIdToUse = challengeLineup.challenge_lineup_id;
+      } else {
+        // Capture the ID immediately after findOne, before any modifications
+        lineupIdToUse = challengeLineup.challenge_lineup_id || challengeLineup.getDataValue('challenge_lineup_id');
+        // Update if exists - use the existing challenge_lineup_id
+        challengeLineup.is_active = true;
+        await challengeLineup.save({ transaction });
+      }
+
+      // Ensure we have a valid lineup_id
+      if (!lineupIdToUse) {
+        throw new Error(`Failed to determine challenge_lineup_id for challenge entry. Challenge lineup found: ${!!challengeLineup}, ID: ${challengeLineup?.challenge_lineup_id}`);
+      }
+
+      // 2. Create challenge_entry
+      const challengeEntryData: any = {
+        challenge_entry_id: data.challenge_entry_id,
+        lineup_id: lineupIdToUse,
+        time_seconds: data.time_seconds,
+        entry_date: data.entry_date,
+        entry_time: data.entry_time
+      };
+      if (data.split_seconds !== undefined) {
+        challengeEntryData.split_seconds = data.split_seconds;
+      }
+      if (data.stroke_rate !== undefined) {
+        challengeEntryData.stroke_rate = data.stroke_rate;
+      }
+      if (data.notes) {
+        challengeEntryData.notes = data.notes;
+      }
+      if (data.conditions) {
+        challengeEntryData.conditions = data.conditions;
+      }
+      const challengeEntry = await ChallengeEntry.create(challengeEntryData, { transaction });
+
+      await transaction.commit();
+
+      return {
+        challenge_lineup: challengeLineup,
+        challenge_entry: challengeEntry
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  /**
+   * Get all challenge lineups (for bulk sync)
+   */
+  static async getAllChallengeLineups(): Promise<ChallengeLineups[]> {
+    return await ChallengeLineups.findAll({
+      where: { is_active: true },
+      include: [
+        {
+          model: Challenge,
+          as: 'challenge',
+          attributes: ['challenge_id', 'distance_meters', 'description']
+        },
+        {
+          model: SavedLineup,
+          as: 'saved_lineup',
+          attributes: ['saved_lineup_id', 'lineup_name', 'boat_id', 'is_active'],
+          include: [
+            {
+              model: Boat,
+              as: 'boat',
+              attributes: ['boat_id', 'name', 'type']
+            }
+          ]
+        }
+      ]
+    });
+  }
+
+  /**
+   * Get all challenge entries (for bulk sync)
+   */
+  static async getAllChallengeEntries(): Promise<ChallengeEntry[]> {
+    return await ChallengeEntry.findAll({
+      order: [['entry_time', 'DESC']]
+    });
+  }
+
+  /**
+   * Get all saved lineups (for bulk sync)
+   */
+  static async getAllSavedLineups(): Promise<SavedLineup[]> {
+    return await SavedLineup.findAll({
+      where: { is_active: true },
+      include: [
+        {
+          model: Boat,
+          as: 'boat',
+          attributes: ['boat_id', 'name', 'type']
+        }
+      ]
+    });
+  }
+
+  /**
+   * Get all saved lineup seat assignments (for bulk sync)
+   */
+  static async getAllSavedLineupSeatAssignments(): Promise<SavedLineupSeatAssignment[]> {
+    return await SavedLineupSeatAssignment.findAll({
+      order: [['saved_lineup_id', 'ASC'], ['seat_number', 'ASC']]
+    });
   }
 
   /**

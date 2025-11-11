@@ -30,65 +30,10 @@ router.get('/', authMiddleware.verifyToken, async (_req: Request, res: Response)
 });
 
 /**
- * GET /api/challenges/:id
- * Get a specific challenge by ID
- */
-router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        message: 'Challenge ID is required',
-        error: 'MISSING_PARAMS'
-      });
-    }
-    
-    const challengeId = parseInt(id);
-
-    if (isNaN(challengeId)) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        message: 'Invalid challenge ID',
-        error: 'INVALID_ID'
-      });
-    }
-
-    const challenge = await challengeService.getChallengeById(challengeId);
-
-    if (!challenge) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        message: 'Challenge not found',
-        error: 'NOT_FOUND'
-      });
-    }
-
-    return res.json({
-      success: true,
-      data: challenge,
-      message: 'Challenge found',
-      error: null
-    });
-  } catch (error: any) {
-    console.error('Error fetching challenge:', error);
-    return res.status(500).json({
-      success: false,
-      data: null,
-      message: 'Failed to fetch challenge',
-      error: error.message || 'INTERNAL_ERROR'
-    });
-  }
-});
-
-/**
  * GET /api/challenges/leaderboards
  * Get leaderboard entries
  * Query params: distanceMeters, boatType, startDate (optional), endDate (optional), limit (optional)
+ * NOTE: This route must come before /:id to avoid route matching conflicts
  */
 router.get('/leaderboards', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
@@ -170,9 +115,61 @@ router.get('/leaderboards', authMiddleware.verifyToken, async (req: Request, res
 });
 
 /**
+ * GET /api/challenges/saved-lineups/all
+ * Get all saved lineups (for bulk sync)
+ * NOTE: This route must come before /saved-lineups to avoid route matching conflicts
+ */
+router.get('/saved-lineups/all', authMiddleware.verifyToken, async (_req: Request, res: Response) => {
+  try {
+    const lineups = await challengeService.getAllSavedLineups();
+
+    return res.json({
+      success: true,
+      data: lineups,
+      message: `Found ${lineups.length} saved lineups`,
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching saved lineups:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch saved lineups',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/challenges/saved-lineups/seat-assignments
+ * Get all saved lineup seat assignments (for bulk sync)
+ */
+router.get('/saved-lineups/seat-assignments', authMiddleware.verifyToken, async (_req: Request, res: Response) => {
+  try {
+    const assignments = await challengeService.getAllSavedLineupSeatAssignments();
+
+    return res.json({
+      success: true,
+      data: assignments,
+      message: `Found ${assignments.length} seat assignments`,
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching seat assignments:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch seat assignments',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
  * GET /api/challenges/saved-lineups
  * Get user's saved lineups
  * Query params: challengeId (optional), boatType (optional) - for filtering
+ * NOTE: This route must come before /:id to avoid route matching conflicts
  */
 router.get('/saved-lineups', authMiddleware.verifyToken, async (req: Request, res: Response) => {
   try {
@@ -224,6 +221,115 @@ router.get('/saved-lineups', authMiddleware.verifyToken, async (req: Request, re
       success: false,
       data: null,
       message: 'Failed to fetch saved lineups',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/challenges/lineups
+ * Get all challenge lineups (for bulk sync)
+ * NOTE: This route must come before /:id to avoid route matching conflicts
+ */
+router.get('/lineups', authMiddleware.verifyToken, async (_req: Request, res: Response) => {
+  try {
+    const lineups = await challengeService.getAllChallengeLineups();
+
+    return res.json({
+      success: true,
+      data: lineups,
+      message: `Found ${lineups.length} challenge lineups`,
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching challenge lineups:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch challenge lineups',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/challenges/entries
+ * Get all challenge entries (for bulk sync)
+ * NOTE: This route must come before /:id to avoid route matching conflicts
+ */
+router.get('/entries', authMiddleware.verifyToken, async (_req: Request, res: Response) => {
+  try {
+    const entries = await challengeService.getAllChallengeEntries();
+
+    return res.json({
+      success: true,
+      data: entries,
+      message: `Found ${entries.length} challenge entries`,
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching challenge entries:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch challenge entries',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/challenges/:id
+ * Get a specific challenge by ID
+ * NOTE: This route must come after all specific routes (like /leaderboards, /saved-lineups, /lineups, /entries) to avoid route matching conflicts
+ */
+router.get('/:id', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Challenge ID is required',
+        error: 'MISSING_PARAMS'
+      });
+    }
+    
+    const challengeId = parseInt(id);
+
+    if (isNaN(challengeId)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid challenge ID',
+        error: 'INVALID_ID'
+      });
+    }
+
+    const challenge = await challengeService.getChallengeById(challengeId);
+
+    if (!challenge) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Challenge not found',
+        error: 'NOT_FOUND'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: challenge,
+      message: 'Challenge found',
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error fetching challenge:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch challenge',
       error: error.message || 'INTERNAL_ERROR'
     });
   }
@@ -382,6 +488,167 @@ router.get('/entries/:lineupId', authMiddleware.verifyToken, async (req: Request
       success: false,
       data: null,
       message: 'Failed to fetch lineup entries',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/challenges/entries/atomic
+ * Create challenge entry atomically with NEW saved lineup
+ * Creates: saved_lineup, saved_lineup_seat_assignment, challenge_lineup, challenge_entry
+ */
+router.post('/entries/atomic', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+  try {
+    const athleteId = req.user?.athlete_id;
+    if (!athleteId) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: 'Athlete ID required',
+        error: 'UNAUTHORIZED'
+      });
+    }
+
+    const {
+      saved_lineup_id,
+      boat_id,
+      lineup_name,
+      seat_assignments,
+      challenge_lineup_id,
+      challenge_id,
+      challenge_entry_id,
+      time_seconds,
+      split_seconds,
+      stroke_rate,
+      entry_date,
+      entry_time,
+      notes,
+      conditions
+    } = req.body;
+
+    if (!saved_lineup_id || !boat_id || !seat_assignments || !challenge_lineup_id || 
+        !challenge_id || !challenge_entry_id || time_seconds === undefined) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Missing required fields',
+        error: 'MISSING_PARAMS'
+      });
+    }
+
+    const challengeIdNum = parseInt(challenge_id);
+    if (isNaN(challengeIdNum)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid challenge_id',
+        error: 'INVALID_PARAMS'
+      });
+    }
+
+    const result = await challengeService.createChallengeEntryAtomic({
+      saved_lineup_id,
+      boat_id,
+      lineup_name,
+      created_by: athleteId,
+      seat_assignments,
+      challenge_lineup_id,
+      challenge_id: challengeIdNum,
+      challenge_entry_id,
+      time_seconds,
+      split_seconds,
+      stroke_rate,
+      entry_date: entry_date ? new Date(entry_date) : new Date(),
+      entry_time: entry_time ? new Date(entry_time) : new Date(),
+      notes,
+      conditions
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Challenge entry created atomically',
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error creating challenge entry atomically:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to create challenge entry',
+      error: error.message || 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/challenges/entries/atomic-existing
+ * Create challenge entry atomically with EXISTING saved lineup
+ * Creates: challenge_lineup, challenge_entry
+ */
+router.post('/entries/atomic-existing', authMiddleware.verifyToken, async (req: Request, res: Response) => {
+  try {
+    const {
+      saved_lineup_id,
+      challenge_lineup_id,
+      challenge_id,
+      challenge_entry_id,
+      time_seconds,
+      split_seconds,
+      stroke_rate,
+      entry_date,
+      entry_time,
+      notes,
+      conditions
+    } = req.body;
+
+    if (!saved_lineup_id || !challenge_lineup_id || !challenge_id || 
+        !challenge_entry_id || time_seconds === undefined) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Missing required fields',
+        error: 'MISSING_PARAMS'
+      });
+    }
+
+    const challengeIdNum = parseInt(challenge_id);
+    if (isNaN(challengeIdNum)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid challenge_id',
+        error: 'INVALID_PARAMS'
+      });
+    }
+
+    const result = await challengeService.createChallengeEntryAtomicExisting({
+      saved_lineup_id,
+      challenge_lineup_id,
+      challenge_id: challengeIdNum,
+      challenge_entry_id,
+      time_seconds,
+      split_seconds,
+      stroke_rate,
+      entry_date: entry_date ? new Date(entry_date) : new Date(),
+      entry_time: entry_time ? new Date(entry_time) : new Date(),
+      notes,
+      conditions
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Challenge entry created atomically',
+      error: null
+    });
+  } catch (error: any) {
+    console.error('Error creating challenge entry atomically:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to create challenge entry',
       error: error.message || 'INTERNAL_ERROR'
     });
   }
