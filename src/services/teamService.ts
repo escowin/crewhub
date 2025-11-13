@@ -263,6 +263,109 @@ export class TeamService {
       throw error;
     }
   }
+
+  /**
+   * Get all coaches (deduplicated)
+   * Returns unique list of athletes who have Coach or Assistant Coach role in any team
+   * Used for coach login dropdown in crewssignment
+   */
+  async getCoaches(): Promise<Array<{
+    athlete_id: string;
+    name: string;
+    role: 'Coach' | 'Assistant Coach';
+    teams: Array<{
+      team_id: number;
+      team_name: string;
+    }>;
+  }>> {
+    try {
+      const memberships = await TeamMembership.findAll({
+        where: {
+          role: ['Coach', 'Assistant Coach'] as any,
+          left_at: null as any // Only active memberships
+        },
+        include: [
+          {
+            model: Athlete,
+            as: 'athlete',
+            attributes: [
+              'athlete_id',
+              'name'
+            ]
+          },
+          {
+            model: Team,
+            as: 'team',
+            attributes: [
+              'team_id',
+              'name'
+            ]
+          }
+        ],
+        attributes: [
+          'athlete_id',
+          'team_id',
+          'role'
+        ],
+        order: [['athlete_id', 'ASC'], ['role', 'ASC']]
+      });
+
+      // Group by athlete_id to deduplicate and collect teams
+      const coachesMap = new Map<string, {
+        athlete_id: string;
+        name: string;
+        role: 'Coach' | 'Assistant Coach';
+        teams: Array<{
+          team_id: number;
+          team_name: string;
+        }>;
+      }>();
+
+      for (const membership of memberships) {
+        const membershipData = membership.toJSON() as any;
+        const athlete = membershipData.athlete;
+        const team = membershipData.team;
+
+        if (!athlete || !team) continue;
+
+        const athleteId = athlete.athlete_id;
+        const role = membershipData.role as 'Coach' | 'Assistant Coach';
+
+        if (coachesMap.has(athleteId)) {
+          // Add team to existing coach entry
+          const coach = coachesMap.get(athleteId)!;
+          coach.teams.push({
+            team_id: team.team_id,
+            team_name: team.name
+          });
+          // Prefer 'Coach' role over 'Assistant Coach' if they have both
+          if (role === 'Coach' && coach.role === 'Assistant Coach') {
+            coach.role = 'Coach';
+          }
+        } else {
+          // Create new coach entry
+          coachesMap.set(athleteId, {
+            athlete_id: athleteId,
+            name: athlete.name,
+            role: role,
+            teams: [{
+              team_id: team.team_id,
+              team_name: team.name
+            }]
+          });
+        }
+      }
+
+      // Convert map to array and sort by name
+      const coaches = Array.from(coachesMap.values());
+      coaches.sort((a, b) => a.name.localeCompare(b.name));
+
+      return coaches;
+    } catch (error) {
+      console.error('TeamService: Error fetching coaches:', error);
+      throw error;
+    }
+  }
 }
 
 export const teamService = new TeamService();

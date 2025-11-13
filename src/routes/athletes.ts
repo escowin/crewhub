@@ -4,7 +4,32 @@ import { athleteService, teamService, practiceSessionService } from '../services
 
 const router = Router();
 
-// Apply authentication middleware to all routes
+/**
+ * GET /api/athletes/coaches
+ * Get list of coaches for login dropdown (public endpoint)
+ * Returns unique coaches (deduplicated if they coach multiple teams)
+ * This endpoint is public and does not require authentication
+ */
+router.get('/coaches', async (_req: Request, res: Response) => {
+  try {
+    const coaches = await teamService.getCoaches();
+
+    return res.json({
+      success: true,
+      data: coaches,
+      message: `Found ${coaches.length} coaches`
+    });
+  } catch (error: any) {
+    console.error('Error fetching coaches:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch coaches',
+      error: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// Apply authentication middleware to all routes below
 router.use(authMiddleware.verifyToken);
 
 /**
